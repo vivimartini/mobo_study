@@ -952,18 +952,16 @@ def show_task():
                 } for e in recent])
                 st.dataframe(df, hide_index=True, use_container_width=True)
 
-        # ── Colour-coded parameter space map ─────────────────
+        # ── Colour-coded score history + smart advice ───────
         all_evals = [e for e in st.session_state.task_evals
                      if e.get('f1') is not None]
         if all_evals:
             st.markdown("#### 🗺️ Exploration map (parameter space)")
             st.caption(
-                "**Colour = how good that design was** (green=good, red=bad). "
-                "Clusters of red dots = bad regions. Scroll to Step 3 and set sliders to cover them. "
-                "Hover over any dot to see its scores."
+                "Each dot = a design you tested. "
+                "**Green = both f₁ and f₂ were good. Red = both were bad.** "
+                "Hover to see exact scores."
             )
-            # Use min(f1,f2) — rewards designs good on BOTH objectives
-            # This correctly identifies Pareto-relevant regions
             scores = [min(e['f1'], e['f2']) for e in all_evals]
             min_s = min(scores)
             max_s = max(scores)
@@ -971,7 +969,8 @@ def show_task():
 
             fig_p = go.Figure()
             fig_p.add_shape(type="rect", x0=0, y0=0, x1=1, y1=1,
-                            fillcolor="#f8f8f8", line=dict(color="#ddd", width=1))
+                            fillcolor="#f8f8f8",
+                            line=dict(color="#ddd", width=1))
 
             # Draw forbidden region if active
             tf = st.session_state.task_forbidden
@@ -985,28 +984,36 @@ def show_task():
                     x=(tf['x1_min']+tf['x1_max'])/2,
                     y=(tf['x2_min']+tf['x2_max'])/2,
                     text="🚫 forbidden",
-                    showarrow=False, font=dict(size=9, color="darkred"),
+                    showarrow=False,
+                    font=dict(size=9, color="darkred"),
                     bgcolor="rgba(255,255,255,0.85)")
 
-            # Plot each evaluation colour-coded by score
+            # Plot with jitter so overlapping dots are visible
+            import random as _random
+            _random.seed(0)
             for e in all_evals:
-                s = min(e['f1'], e['f2'])  # green = good on BOTH objectives
+                s = min(e['f1'], e['f2'])
                 t = (s - min_s) / rng
                 r = int(220 * (1-t))
                 g = int(160 * t)
                 col = f"rgb({r},{g},60)"
                 sym = "star" if e['type'] == 'formal' else "circle"
-                sz = 12 if e['type'] == 'formal' else 9
+                sz  = 13 if e['type'] == 'formal' else 9
+                # Add small jitter so stacked dots are visible
+                jx = e['x'][0] + _random.uniform(-0.02, 0.02)
+                jy = e['x'][1] + _random.uniform(-0.02, 0.02)
+                jx = max(0.01, min(0.99, jx))
+                jy = max(0.01, min(0.99, jy))
                 fig_p.add_trace(go.Scatter(
-                    x=[e['x'][0]], y=[e['x'][1]],
+                    x=[jx], y=[jy],
                     mode="markers",
                     marker=dict(color=col, size=sz, symbol=sym,
                                 line=dict(color="white", width=1)),
                     showlegend=False,
                     hovertemplate=(
-                        f"x₁={e['x'][0]:.2f}, x₂={e['x'][1]:.2f}<br>"
+                        f"x₁={e['x'][0]:.2f}, x₂={e['x'][1]:.2f}, x₃={e['x'][2]:.2f}<br>"
                         f"f₁={e['f1']:.3f}, f₂={e['f2']:.3f}<br>"
-                        f"Combined score={s:.3f}"
+                        f"Quality: {'🟢 Good' if t > 0.6 else '🟡 Mediocre' if t > 0.3 else '🔴 Bad'}"
                         f"<extra>{'⭐ Formal' if e['type']=='formal' else 'Heuristic'}</extra>"
                     )
                 ))
@@ -1015,17 +1022,17 @@ def show_task():
             cx = st.session_state.task_x
             fig_p.add_trace(go.Scatter(
                 x=[cx[0]], y=[cx[1]], mode="markers",
-                marker=dict(color="royalblue", size=13, symbol="diamond",
+                marker=dict(color="royalblue", size=14, symbol="diamond",
                             line=dict(color="white", width=2)),
                 showlegend=False,
-                hovertemplate=f"Current design: x₁={cx[0]:.2f}, x₂={cx[1]:.2f}<extra></extra>"
+                hovertemplate=f"Current: x₁={cx[0]:.2f}, x₂={cx[1]:.2f}<extra>You are here</extra>"
             ))
 
             fig_p.update_layout(
-                xaxis=dict(range=[-0.02,1.02], title="x₁ →", showgrid=False,
-                           zeroline=False),
-                yaxis=dict(range=[-0.02,1.02], title="x₂ →", showgrid=False,
-                           zeroline=False),
+                xaxis=dict(range=[-0.05,1.05], title="x₁ →",
+                           showgrid=False, zeroline=False),
+                yaxis=dict(range=[-0.05,1.05], title="x₂ →",
+                           showgrid=False, zeroline=False),
                 height=260,
                 margin=dict(l=40, r=10, t=10, b=40),
                 plot_bgcolor="#f8f8f8",
@@ -1033,12 +1040,101 @@ def show_task():
             )
             st.plotly_chart(fig_p, use_container_width=True,
                             config={'displayModeBar': False})
+
+            # Smart advice based on what's on the map
+            red_evals = [e for e, s in zip(all_evals, scores)
+                         if (s - min_s)/rng < 0.3]
+            green_evals = [e for e, s in zip(all_evals, scores)
+                           if (s - min_s)/rng > 0.6]
+
+            if len(set([round(e['x'][0],1) for e in all_evals])) == 1:
+                st.warning(
+                    "⚠️ All your evaluations are at the same x₁, x₂ position. "
+                    "Try clicking **🤖 New Design from MOBO** to explore different regions, "
+                    "or adjust the x₁, x₂, x₃ sliders manually in Step 1."
+                )
+            elif red_evals:
+                avg_x1 = sum(e['x'][0] for e in red_evals) / len(red_evals)
+                avg_x2 = sum(e['x'][1] for e in red_evals) / len(red_evals)
+                st.error(
+                    f"🔴 **Bad regions found** near x₁≈{avg_x1:.1f}, x₂≈{avg_x2:.1f}. "
+                    f"Scroll down to Step 3, enable the forbidden region, "
+                    f"and set sliders to cover that area."
+                )
+            elif green_evals:
+                avg_x1 = sum(e['x'][0] for e in green_evals) / len(green_evals)
+                avg_x2 = sum(e['x'][1] for e in green_evals) / len(green_evals)
+                st.success(
+                    f"🟢 **Good region found** near x₁≈{avg_x1:.1f}, x₂≈{avg_x2:.1f}. "
+                    f"Keep exploring nearby — use ⭐ Formal Evaluate when scores look consistently good."
+                )
+
+                # ── Step 3 HERE — directly below the map ─────────────
+        st.markdown("---")
+        st.markdown("#### Step 3 — Steer MOBO away from bad regions (optional)")
+
+        all_evals_check = [e for e in st.session_state.task_evals if e.get('f1') is not None]
+        if not all_evals_check:
+            st.caption("Do some heuristic evaluations first — then the exploration map above will show you which regions are bad, and you can tell MOBO to avoid them here.")
+        else:
             st.caption(
-                "🟢 Green = good score. 🔴 Red = bad score. "
-                "⭐ Star = formal eval. ● Circle = heuristic. "
-                "🔷 Blue = current design. "
-                "**💡 Tip:** See a cluster of red dots? Scroll down to Step 3, enable the forbidden region, and set the sliders to cover that area — MOBO will avoid it."
+                "**Look at the map above.** See red dots (bad scores)? "
+                "Set the sliders below to cover that region — MOBO will stop suggesting designs from there."
             )
+
+        use_f = st.checkbox("Enable forbidden region", key="t_use_f")
+        t_forbidden = None
+
+        if use_f:
+            st.caption(
+                "Set min and max for each knob to define the region to avoid. "
+                "Example: red dots at x₁≈0.1–0.3 → set x₁ min=0.0, x₁ max=0.3."
+            )
+            tc1, tc2 = st.columns(2)
+            with tc1:
+                st.caption("**Start of forbidden box:**")
+                tx1min = st.slider("x₁ min", 0.0, 0.9,
+                                   st.session_state.task_x1_min, 0.05, key="tx1min")
+                tx2min = st.slider("x₂ min", 0.0, 0.9,
+                                   st.session_state.task_x2_min, 0.05, key="tx2min")
+                tx3min = st.slider("x₃ min", 0.0, 0.9,
+                                   st.session_state.task_x3_min, 0.05, key="tx3min")
+            with tc2:
+                st.caption("**End of forbidden box:**")
+                tx1max = st.slider("x₁ max", 0.1, 1.0,
+                                   st.session_state.task_x1_max, 0.05, key="tx1max")
+                tx2max = st.slider("x₂ max", 0.1, 1.0,
+                                   st.session_state.task_x2_max, 0.05, key="tx2max")
+                tx3max = st.slider("x₃ max", 0.1, 1.0,
+                                   st.session_state.task_x3_max, 0.05, key="tx3max")
+
+            if tx1min < tx1max and tx2min < tx2max and tx3min < tx3max:
+                t_forbidden = {'x1_min':tx1min,'x1_max':tx1max,
+                               'x2_min':tx2min,'x2_max':tx2max,
+                               'x3_min':tx3min,'x3_max':tx3max}
+                st.session_state.task_x1_min = tx1min
+                st.session_state.task_x1_max = tx1max
+                st.session_state.task_x2_min = tx2min
+                st.session_state.task_x2_max = tx2max
+                st.session_state.task_x3_min = tx3min
+                st.session_state.task_x3_max = tx3max
+                vol = (tx1max-tx1min)*(tx2max-tx2min)*(tx3max-tx3min)
+                st.caption(f"Forbidden box covers {vol*100:.0f}% of parameter space")
+            else:
+                st.warning("Each min must be less than its max.")
+                t_forbidden = None
+
+        t_beta = st.slider("Avoid-strength β  (0 = ignore,  1 = strongly avoid)",
+                           0.0, 1.0, st.session_state.task_beta, 0.05, key="t_beta")
+        st.session_state.task_beta = t_beta
+        st.session_state.task_forbidden = t_forbidden
+
+        # Log steering changes
+        log = st.session_state.steering_log
+        new_entry = {'forbidden':t_forbidden, 'beta':t_beta,
+                     'ts':datetime.now().isoformat()}
+        if not log or log[-1].get('forbidden') != t_forbidden or log[-1].get('beta') != t_beta:
+            log.append(new_entry)
 
     # ── RIGHT: Step-by-step controls ─────────────────────────
     with col_ctrl:
@@ -1138,67 +1234,9 @@ def show_task():
 
         st.markdown("---")
 
-        # ── STEP 3: Steer MOBO ───────────────────────────────
-        st.markdown("#### Step 3 — Steer MOBO (optional)")
-        st.caption(
-            "Look at the 🗺️ Exploration Map on the left. "
-            "See red dots? Those are bad regions. "
-            "Use the sliders below to cover that area — MOBO will stop suggesting designs from there."
-        )
-
-        use_f = st.checkbox("Enable forbidden region", key="t_use_f")
-        t_forbidden = None
-
-        if use_f:
-            st.caption(
-                "Set the **min and max** for each parameter to define the box you want MOBO to avoid. "
-                "Example: if red dots on the map are at x₁ ≈ 0.0–0.3 and x₂ ≈ 0.0–0.3, "
-                "set x₁ min=0.0, x₁ max=0.3, x₂ min=0.0, x₂ max=0.3."
-            )
-            tc1, tc2 = st.columns(2)
-            with tc1:
-                st.caption("**Lower bound** of the forbidden box:")
-                tx1min = st.slider("x₁ min", 0.0, 0.9,
-                                   st.session_state.task_x1_min, 0.05, key="tx1min")
-                tx2min = st.slider("x₂ min", 0.0, 0.9,
-                                   st.session_state.task_x2_min, 0.05, key="tx2min")
-                tx3min = st.slider("x₃ min", 0.0, 0.9,
-                                   st.session_state.task_x3_min, 0.05, key="tx3min")
-            with tc2:
-                st.caption("**Upper bound** of the forbidden box:")
-                tx1max = st.slider("x₁ max", 0.1, 1.0,
-                                   st.session_state.task_x1_max, 0.05, key="tx1max")
-                tx2max = st.slider("x₂ max", 0.1, 1.0,
-                                   st.session_state.task_x2_max, 0.05, key="tx2max")
-                tx3max = st.slider("x₃ max", 0.1, 1.0,
-                                   st.session_state.task_x3_max, 0.05, key="tx3max")
-
-            if tx1min < tx1max and tx2min < tx2max and tx3min < tx3max:
-                t_forbidden = {'x1_min':tx1min,'x1_max':tx1max,
-                               'x2_min':tx2min,'x2_max':tx2max,
-                               'x3_min':tx3min,'x3_max':tx3max}
-                st.session_state.task_x1_min = tx1min
-                st.session_state.task_x1_max = tx1max
-                st.session_state.task_x2_min = tx2min
-                st.session_state.task_x2_max = tx2max
-                st.session_state.task_x3_min = tx3min
-                st.session_state.task_x3_max = tx3max
-                vol = (tx1max-tx1min)*(tx2max-tx2min)*(tx3max-tx3min)
-                st.caption(f"Forbidden box covers {vol*100:.0f}% of parameter space")
-            else:
-                st.warning("Each min must be less than its max.")
-
-        t_beta = st.slider("Avoid-strength β  (0 = ignore,  1 = strongly avoid)",
-                           0.0, 1.0, st.session_state.task_beta, 0.05, key="t_beta")
-        st.session_state.task_beta = t_beta
-        st.session_state.task_forbidden = t_forbidden
-
-        # Log steering changes
-        log = st.session_state.steering_log
-        new_entry = {'forbidden':t_forbidden, 'beta':t_beta,
-                     'ts':datetime.now().isoformat()}
-        if not log or log[-1].get('forbidden') != t_forbidden or log[-1].get('beta') != t_beta:
-            log.append(new_entry)
+        # ── Step 3 is shown on the LEFT below the exploration map ──
+        st.info("👈 **Step 3 — Steer MOBO** is on the left, below the exploration map. "
+                "Once you've done some evaluations, look for red dots and set the forbidden region there.")
 
     # Timer refresh — every 10s during task only
     if st.session_state.phase == 'task' and budget_left > 0 and remaining > 0:
