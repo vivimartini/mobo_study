@@ -229,9 +229,9 @@ def init():
         'task_x': [0.5, 0.5, 0.5],
         'task_beta': 0.5,
         'task_forbidden': None,
-        'task_x1_min': 0.0, 'task_x1_max': 0.4,
-        'task_x2_min': 0.0, 'task_x2_max': 0.4,
-        'task_x3_min': 0.0, 'task_x3_max': 0.4,
+        'task_x1_min': 0.5, 'task_x1_max': 0.8,
+        'task_x2_min': 0.5, 'task_x2_max': 0.8,
+        'task_x3_min': 0.5, 'task_x3_max': 0.8,
         # practice data (completely separate)
         'practice_evals': [],
         'practice_mobo_done': False,
@@ -817,12 +817,12 @@ Complete all three steps before continuing:
             st.session_state.task_x = [0.5, 0.5, 0.5]
             st.session_state.task_beta = 0.5
             st.session_state.task_forbidden = None
-            st.session_state.task_x1_min = 0.0
-            st.session_state.task_x1_max = 0.4
-            st.session_state.task_x2_min = 0.0
-            st.session_state.task_x2_max = 0.4
-            st.session_state.task_x3_min = 0.0
-            st.session_state.task_x3_max = 0.4
+            st.session_state.task_x1_min = 0.5
+            st.session_state.task_x1_max = 0.8
+            st.session_state.task_x2_min = 0.5
+            st.session_state.task_x2_max = 0.8
+            st.session_state.task_x3_min = 0.5
+            st.session_state.task_x3_max = 0.8
             st.session_state.task_start = time.time()
             st.session_state.phase = 'task_intro'
             st.rerun()
