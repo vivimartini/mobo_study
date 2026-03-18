@@ -351,9 +351,17 @@ def show_tutorial():
     if step == 1:
         st.markdown("## 👋 What you're doing")
         st.markdown("""
-Imagine you're an engineer with **three design knobs** — call them **x₁, x₂, x₃**.
-Each knob goes from **0 to 1**. You can set them to any value — 0.1, 0.5, 0.9, anything.
-They represent the *inputs* to a black-box machine. You don't know what the machine does internally — you just set the knobs and see what scores come out.
+Imagine you're training a neural network and trying to find the best hyperparameters.
+You have three knobs to tune:
+- **x₁ = Learning rate** (0 = very small, 1 = large)
+- **x₂ = Dropout rate** (0 = no dropout, 1 = heavy dropout)
+- **x₃ = Batch size** (0 = small batches, 1 = large batches)
+
+When you run an experiment with a given combination, you get back two scores:
+- **f₁ = Validation accuracy** — how well the model generalises
+- **f₂ = Training speed** — how fast it trains
+
+Both should be **as high as possible** — but they trade off. Fast training often means less accuracy.
 
 When you test a design, you get back **two performance scores: f₁ and f₂**.
 Both should be **as high as possible** — but they trade off against each other.
@@ -363,11 +371,11 @@ So there's no single "best" design. Instead there's a *family* of good designs,
 each making a different trade-off. Your job is to find as many of these as possible.
         """)
         st.info("""
-**Your goal:** Find as many good trade-off designs as possible — designs where **both f₁ and f₂ are high**.
+**Your goal:** Find as many good hyperparameter combinations as possible — ones where the model is **both accurate AND fast to train**.
 
-Because f₁ and f₂ trade off, no single design will max out both. So you want a *collection* of designs that together cover the top-right corner of the plot. These appear as **⭐ red stars**.
+Because accuracy and speed trade off, no single combination wins on both. You want a *collection* of good combinations that together cover the top-right corner of the plot. These appear as **⭐ red stars**.
 
-**The more stars in the top-right, the higher your score (HV).** HV is just a number that measures how well your collection covers the top-right — bigger is better.
+**The more stars in the top-right, the higher your score.** Think of it as mapping out the best accuracy-speed trade-off frontier.
         """)
 
         # Show example plot
@@ -405,7 +413,7 @@ Because f₁ and f₂ trade off, no single design will max out both. So you want
                                font=dict(size=10, color="green"), xanchor="right")
             fig.update_layout(
                 title=dict(text=title, font=dict(color=color, size=14)),
-                xaxis_title="f₁ →", yaxis_title="f₂ →",
+                xaxis_title="Val. accuracy (f₁) →", yaxis_title="Train speed (f₂) →",
                 height=280, margin=dict(l=40,r=10,t=40,b=40),
                 plot_bgcolor="white", paper_bgcolor="white",
                 showlegend=False,
@@ -489,12 +497,11 @@ MOBO gets smarter as you evaluate more — early suggestions are exploratory, la
         st.markdown("## 🚫 How to steer MOBO away from bad regions")
 
         st.markdown("""
-Here's the situation you'll face during the task:
+Here's a situation you'll recognise from actual ML work:
 
-You've tried a few designs. Some gave terrible f₁ and f₂ scores.
-MOBO keeps suggesting more designs from the same region — because it doesn't know you've already ruled it out.
+You've run a few experiments. Every time you try a **high learning rate** (x₁ > 0.7), training diverges — terrible validation accuracy. MOBO doesn't know this yet and keeps suggesting high learning rates.
 
-**You need to tell MOBO: stop suggesting designs from that area.**
+**You need to tell MOBO: stop suggesting high learning rates. I've already ruled those out.**
 
 That's what the **Forbidden Region** is for.
         """)
@@ -724,9 +731,9 @@ Complete all three steps before continuing:
         """)
         st.markdown("---")
         c1, c2, c3 = st.columns(3)
-        with c1: px1 = st.slider("x₁", 0.0, 1.0, 0.5, 0.01, key="px1")
-        with c2: px2 = st.slider("x₂", 0.0, 1.0, 0.5, 0.01, key="px2")
-        with c3: px3 = st.slider("x₃", 0.0, 1.0, 0.5, 0.01, key="px3")
+        with c1: px1 = st.slider("Learning rate (x₁)", 0.0, 1.0, 0.5, 0.01, key="px1")
+        with c2: px2 = st.slider("Dropout rate (x₂)", 0.0, 1.0, 0.5, 0.01, key="px2")
+        with c3: px3 = st.slider("Batch size (x₃)", 0.0, 1.0, 0.5, 0.01, key="px3")
         px = np.array([px1, px2, px3])
 
         st.markdown("---")
@@ -738,13 +745,13 @@ Complete all three steps before continuing:
         if use_f:
             pc1, pc2 = st.columns(2)
             with pc1:
-                px1min = st.slider("x₁ min", 0.0, 0.9, 0.0, 0.05, key="px1min")
-                px2min = st.slider("x₂ min", 0.0, 0.9, 0.0, 0.05, key="px2min")
-                px3min = st.slider("x₃ min", 0.0, 0.9, 0.0, 0.05, key="px3min")
+                px1min = st.slider("LR min", 0.0, 0.9, 0.0, 0.05, key="px1min")
+                px2min = st.slider("Dropout min", 0.0, 0.9, 0.0, 0.05, key="px2min")
+                px3min = st.slider("Batch min", 0.0, 0.9, 0.0, 0.05, key="px3min")
             with pc2:
-                px1max = st.slider("x₁ max", 0.1, 1.0, 0.4, 0.05, key="px1max")
-                px2max = st.slider("x₂ max", 0.1, 1.0, 0.4, 0.05, key="px2max")
-                px3max = st.slider("x₃ max", 0.1, 1.0, 0.4, 0.05, key="px3max")
+                px1max = st.slider("LR max", 0.1, 1.0, 0.4, 0.05, key="px1max")
+                px2max = st.slider("Dropout max", 0.1, 1.0, 0.4, 0.05, key="px2max")
+                px3max = st.slider("Batch max", 0.1, 1.0, 0.4, 0.05, key="px3max")
             if px1min < px1max and px2min < px2max and px3min < px3max:
                 p_forbidden = {'x1_min':px1min,'x1_max':px1max,
                                'x2_min':px2min,'x2_max':px2max,
@@ -867,7 +874,7 @@ def show_task():
         st.rerun()
 
     # ── Header ───────────────────────────────────────────────
-    st.markdown("## 🔬 Design Optimisation Task")
+    st.markdown("## 🧠 Neural Network Hyperparameter Tuning Task")
     st.info("**Your goal:** Find as many good trade-off designs as possible — both f₁ and f₂ high. "
             "Top-right corner of the plot = where you want to be. "
             "Use MOBO suggestions and steer it away from bad regions.")
@@ -906,7 +913,7 @@ def show_task():
 
     if n_formal == 0 and n_heuristic == 0:
         st.info(
-            "👋 **Start here — 3 easy steps:**  "
+            "👋 **Start here — tune some hyperparameters:**  "
             "① Click **🤖 New Design from MOBO** to get a suggested design  →  "
             "② Click **🔵 Heuristic** to test it (free, unlimited)  →  "
             "③ Repeat to explore. When scores look good (above 0.5), use **⭐ Formal** to lock it in."
@@ -956,11 +963,11 @@ def show_task():
             if recent:
                 df = pd.DataFrame([{
                     'Type': e['type'].capitalize(),
-                    'x₁': f"{e['x'][0]:.2f}",
-                    'x₂': f"{e['x'][1]:.2f}",
-                    'x₃': f"{e['x'][2]:.2f}",
-                    'f₁': f"{e['f1']:.3f}",
-                    'f₂': f"{e['f2']:.3f}",
+                    'LR': f"{e['x'][0]:.2f}",
+                    'Drop': f"{e['x'][1]:.2f}",
+                    'Batch': f"{e['x'][2]:.2f}",
+                    'Val.acc': f"{e['f1']:.3f}",
+                    'Tr.speed': f"{e['f2']:.3f}",
                 } for e in recent])
                 st.dataframe(df, hide_index=True, use_container_width=True)
 
@@ -1041,9 +1048,9 @@ def show_task():
             ))
 
             fig_p.update_layout(
-                xaxis=dict(range=[-0.05,1.05], title="x₁ →",
+                xaxis=dict(range=[-0.05,1.05], title="Learning rate (x₁) →",
                            showgrid=False, zeroline=False),
-                yaxis=dict(range=[-0.05,1.05], title="x₂ →",
+                yaxis=dict(range=[-0.05,1.05], title="Dropout rate (x₂) →",
                            showgrid=False, zeroline=False),
                 height=260,
                 margin=dict(l=40, r=10, t=10, b=40),
@@ -1083,7 +1090,7 @@ def show_task():
 
                 # ── Step 3 HERE — directly below the map ─────────────
         st.markdown("---")
-        st.markdown("#### Step 3 — Steer MOBO away from bad regions (optional)")
+        st.markdown("#### Step 3 — Forbid bad hyperparameter regions (optional)")
 
         all_evals_check = [e for e in st.session_state.task_evals if e.get('f1') is not None]
         if not all_evals_check:
@@ -1105,19 +1112,19 @@ def show_task():
             tc1, tc2 = st.columns(2)
             with tc1:
                 st.caption("**Start of forbidden box:**")
-                tx1min = st.slider("x₁ min", 0.0, 0.9,
+                tx1min = st.slider("LR min", 0.0, 0.9,
                                    st.session_state.task_x1_min, 0.05, key="tx1min")
-                tx2min = st.slider("x₂ min", 0.0, 0.9,
+                tx2min = st.slider("Dropout min", 0.0, 0.9,
                                    st.session_state.task_x2_min, 0.05, key="tx2min")
-                tx3min = st.slider("x₃ min", 0.0, 0.9,
+                tx3min = st.slider("Batch min", 0.0, 0.9,
                                    st.session_state.task_x3_min, 0.05, key="tx3min")
             with tc2:
                 st.caption("**End of forbidden box:**")
-                tx1max = st.slider("x₁ max", 0.1, 1.0,
+                tx1max = st.slider("LR max", 0.1, 1.0,
                                    st.session_state.task_x1_max, 0.05, key="tx1max")
-                tx2max = st.slider("x₂ max", 0.1, 1.0,
+                tx2max = st.slider("Dropout max", 0.1, 1.0,
                                    st.session_state.task_x2_max, 0.05, key="tx2max")
-                tx3max = st.slider("x₃ max", 0.1, 1.0,
+                tx3max = st.slider("Batch max", 0.1, 1.0,
                                    st.session_state.task_x3_max, 0.05, key="tx3max")
 
             if tx1min < tx1max and tx2min < tx2max and tx3min < tx3max:
@@ -1183,9 +1190,9 @@ def show_task():
                        f"x₂={s['x'][1]:.3f}, x₃={s['x'][2]:.3f}")
 
         c1, c2, c3 = st.columns(3)
-        with c1: tx1 = st.slider("x₁", 0.0, 1.0, float(st.session_state.task_x[0]), 0.01, key="tx1")
-        with c2: tx2 = st.slider("x₂", 0.0, 1.0, float(st.session_state.task_x[1]), 0.01, key="tx2")
-        with c3: tx3 = st.slider("x₃", 0.0, 1.0, float(st.session_state.task_x[2]), 0.01, key="tx3")
+        with c1: tx1 = st.slider("Learning rate (x₁)", 0.0, 1.0, float(st.session_state.task_x[0]), 0.01, key="tx1")
+        with c2: tx2 = st.slider("Dropout rate (x₂)", 0.0, 1.0, float(st.session_state.task_x[1]), 0.01, key="tx2")
+        with c3: tx3 = st.slider("Batch size (x₃)", 0.0, 1.0, float(st.session_state.task_x[2]), 0.01, key="tx3")
         tx = np.array([tx1, tx2, tx3])
         st.session_state.task_x = [tx1, tx2, tx3]
 
