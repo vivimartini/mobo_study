@@ -295,15 +295,13 @@ This study investigates how user performance and experience in computer-based ta
         c5 = st.checkbox("5. I agree to take part in this study.")
         st.markdown("")
         pid = st.text_input("**Participant ID** (given by researcher):", key="pid_input")
-        name = st.text_input("**Your name** (for consent record only):", key="name_input")
-        st.caption("Your name is used only for the consent record and is not linked to your data.")
-        if c1 and c2 and c3 and c4 and c5 and pid.strip() and name.strip():
+        if c1 and c2 and c3 and c4 and c5 and pid.strip():
             if st.button("I consent → proceed to demographics", type="primary"):
                 st.session_state.participant_id = pid.strip()
                 st.session_state.consent_step = 'demographics'
                 st.rerun()
         else:
-            st.info("Please tick all boxes and fill in both fields to continue.")
+            st.info("Please tick all boxes and enter your participant ID to continue.")
 
     elif step == 'demographics':
         st.markdown("### Demographics")
@@ -347,7 +345,7 @@ each making a different trade-off. Your job is to find as many of these as possi
         st.info("""
 **Your goal:** Find a strong **Pareto set** — a collection of designs where no single design beats all others on both f₁ and f₂ simultaneously.
 
-On the objective plot, your best designs appear as **⭐ red stars** (the Pareto front).
+On the objective plot, your best designs appear as **⭐ stars** (the Pareto front).
 The more red stars pushed toward the **top-right corner**, the better your score.
         """)
 
@@ -626,7 +624,7 @@ Complete all three steps before continuing:
 
     with col_plot:
         st.markdown("#### Objective Plot (Practice)")
-        st.caption("🔴 Red stars = Pareto front. 🔵 Blue = heuristic. Aim top-right.")
+        st.caption("⭐ Stars = your best designs (Pareto front). 🔵 Blue circles = heuristic. Aim top-right.")
         real_evals = [e for e in st.session_state.practice_evals if e.get('f1') is not None]
         st.plotly_chart(make_plot(real_evals, height=350), use_container_width=True)
 
@@ -779,9 +777,9 @@ def show_task():
     with col_plot:
         st.markdown("#### Objective Plot")
         st.caption(
-            "⭐ **Red stars** = your best designs (Pareto front) — aim to push these toward the top-right corner. "
+            "⭐ **Stars** = your best designs (Pareto front) — aim to push these toward the top-right corner. "
             "🔵 **Blue circles** = heuristic evaluations (rough estimates, free). "
-            "🔴 **Pink dots** = formal evaluations that were later beaten by better designs. "
+            "**Faded dots** = formal evaluations beaten by later designs. "
             "Negative values are possible due to measurement noise — keep exploring!"
         )
         st.plotly_chart(make_plot(st.session_state.task_evals, height=420),
