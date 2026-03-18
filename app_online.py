@@ -238,6 +238,7 @@ def init():
         'practice_forbidden_done': False,
         'practice_formal_done': False,
         'practice_last_suggestion': None,
+        'same_point_warning': False,
         # questionnaire
         'questionnaire': {},
     }
@@ -1193,9 +1194,13 @@ def show_task():
 
         # ── STEP 1: Get a design ─────────────────────────────
         st.markdown("#### Step 1 — Get a design")
-        st.caption("Ask MOBO for a suggestion, or set x₁ x₂ x₃ manually.")
+        st.caption("Ask MOBO for a suggestion, or manually adjust the sliders. "
+                   "**Each evaluation should test a different combination.**")
+        if st.session_state.get('same_point_warning'):
+            st.warning("⚠️ You've evaluated the same hyperparameters multiple times. "
+                       "Click **🤖 New Design from MOBO** to explore a different region!")
 
-        if st.button("🤖 New Design from MOBO", type="primary",
+        if st.button("🤖 Get next hyperparameters from MOBO", type="primary",
                      key="t_mobo", use_container_width=True):
             formal_pts = [(e['f1'],e['f2']) for e in st.session_state.task_evals
                           if e['type']=='formal' and e.get('f1') is not None]
@@ -1229,6 +1234,36 @@ def show_task():
         tx = np.array([tx1, tx2, tx3])
         st.session_state.task_x = [tx1, tx2, tx3]
 
+        # ── Live prediction based on nearest past evaluations ─
+        past = [e for e in st.session_state.task_evals if e.get('f1') is not None]
+        if len(past) >= 2:
+            # Find 3 nearest neighbours by Euclidean distance in parameter space
+            dists = [np.linalg.norm(np.array(e['x']) - tx) for e in past]
+            nearest_idx = np.argsort(dists)[:3]
+            nearest = [past[i] for i in nearest_idx]
+            # Weighted average (closer = more weight)
+            weights = [1/(dists[i]+0.01) for i in nearest_idx]
+            total_w = sum(weights)
+            pred_f1 = sum(nearest[i]['f1']*weights[i] for i in range(len(nearest))) / total_w
+            pred_f2 = sum(nearest[i]['f2']*weights[i] for i in range(len(nearest))) / total_w
+            pred_score = min(pred_f1, pred_f2)
+
+            if pred_score > 0.5:
+                emoji, label, color = "🟢", "Looks promising!", "normal"
+            elif pred_score > 0.2:
+                emoji, label, color = "🟡", "Mediocre — keep exploring", "normal"
+            else:
+                emoji, label, color = "🔴", "Likely bad — try elsewhere", "normal"
+
+            st.markdown(
+                f"**Estimated performance:** {emoji} {label}  \n"
+                f"Predicted accuracy ≈ **{pred_f1:.2f}** | "
+                f"Predicted speed ≈ **{pred_f2:.2f}**  \n"
+                f"*Based on {len(nearest)} similar past experiments*"
+            )
+        elif len(past) == 1:
+            st.caption("Do a few more heuristic evaluations to unlock live predictions.")
+
         st.markdown("---")
 
         # ── STEP 2: Evaluate ─────────────────────────────────
@@ -1247,6 +1282,17 @@ def show_task():
                 st.session_state.heuristic_count += 1
                 st.session_state.last_result = (f1, f2, 'heuristic')
                 st.session_state.pending_suggestion = None
+                # Check if evaluating same point repeatedly
+                recent_xs = [e['x'] for e in st.session_state.task_evals[-4:]
+                             if e.get('x') is not None]
+                if len(recent_xs) >= 3 and all(
+                    abs(x[0]-recent_xs[0][0]) < 0.02 and
+                    abs(x[1]-recent_xs[0][1]) < 0.02
+                    for x in recent_xs
+                ):
+                    st.session_state.same_point_warning = True
+                else:
+                    st.session_state.same_point_warning = False
                 st.rerun()
 
         with col_f:
