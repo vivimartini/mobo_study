@@ -1094,11 +1094,11 @@ def show_task():
 
         all_evals_check = [e for e in st.session_state.task_evals if e.get('f1') is not None]
         if not all_evals_check:
-            st.caption("Do some heuristic evaluations first — then the exploration map above will show you which regions are bad, and you can tell MOBO to avoid them here.")
+            st.caption("Complete some evaluations first — once you've found bad hyperparameter regions, come back here to stop MOBO suggesting them.")
         else:
             st.caption(
-                "**Look at the map above.** See red dots (bad scores)? "
-                "Set the sliders below to cover that region — MOBO will stop suggesting designs from there."
+                "**Look at the map above.** Red dots = bad hyperparameter combinations. "
+                "Define those regions below so MOBO explores elsewhere."
             )
 
         use_f = st.checkbox("Enable forbidden region", key="t_use_f")
@@ -1106,12 +1106,12 @@ def show_task():
 
         if use_f:
             st.caption(
-                "Set min and max for each knob to define the region to avoid. "
-                "Example: red dots at x₁≈0.1–0.3 → set x₁ min=0.0, x₁ max=0.3."
+                "Set the range of hyperparameters to avoid. "
+                "Example: LR > 0.7 always diverges → set LR min=0.7, LR max=1.0."
             )
             tc1, tc2 = st.columns(2)
             with tc1:
-                st.caption("**Start of forbidden box:**")
+                st.caption("**Start of forbidden range:**")
                 tx1min = st.slider("LR min", 0.0, 0.9,
                                    st.session_state.task_x1_min, 0.05, key="tx1min")
                 tx2min = st.slider("Dropout min", 0.0, 0.9,
@@ -1119,7 +1119,7 @@ def show_task():
                 tx3min = st.slider("Batch min", 0.0, 0.9,
                                    st.session_state.task_x3_min, 0.05, key="tx3min")
             with tc2:
-                st.caption("**End of forbidden box:**")
+                st.caption("**End of forbidden range:**")
                 tx1max = st.slider("LR max", 0.1, 1.0,
                                    st.session_state.task_x1_max, 0.05, key="tx1max")
                 tx2max = st.slider("Dropout max", 0.1, 1.0,
@@ -1137,8 +1137,6 @@ def show_task():
                 st.session_state.task_x2_max = tx2max
                 st.session_state.task_x3_min = tx3min
                 st.session_state.task_x3_max = tx3max
-                vol = (tx1max-tx1min)*(tx2max-tx2min)*(tx3max-tx3min)
-                st.caption(f"Forbidden box covers {vol*100:.0f}% of parameter space")
             else:
                 st.warning("Each min must be less than its max.")
                 t_forbidden = None
@@ -1147,6 +1145,41 @@ def show_task():
                            0.0, 1.0, st.session_state.task_beta, 0.05, key="t_beta")
         st.session_state.task_beta = t_beta
         st.session_state.task_forbidden = t_forbidden
+
+        # ── Live MOBO preview — shows effect of forbidden region ──
+        if t_forbidden is not None and t_beta > 0:
+            formal_pts_p = [(e['f1'],e['f2']) for e in st.session_state.task_evals
+                            if e['type']=='formal' and e.get('f1') is not None]
+            sug_with, _ = mobo_suggest(candidates, formal_pts_p,
+                                       t_forbidden, t_beta, "C")
+            sug_without, _ = mobo_suggest(candidates, formal_pts_p,
+                                          None, 0.0, "C")
+            inside_without = all(
+                t_forbidden[f'x{i+1}_min'] <= sug_without[i] <= t_forbidden[f'x{i+1}_max']
+                for i in range(3)
+            )
+            inside_with = all(
+                t_forbidden[f'x{i+1}_min'] <= sug_with[i] <= t_forbidden[f'x{i+1}_max']
+                for i in range(3)
+            )
+            st.markdown("**Live preview — effect of your forbidden region:**")
+            col_wo, col_w = st.columns(2)
+            with col_wo:
+                st.error(
+                    f"❌ **Without** forbidden region:\n\n"
+                    f"MOBO would suggest:\n"
+                    f"LR={sug_without[0]:.2f}, Drop={sug_without[1]:.2f}, Batch={sug_without[2]:.2f}"
+                    + ("\n\n⚠️ Inside bad region!" if inside_without else "")
+                )
+            with col_w:
+                st.success(
+                    f"✅ **With** your forbidden region (β={t_beta:.1f}):\n\n"
+                    f"MOBO suggests:\n"
+                    f"LR={sug_with[0]:.2f}, Drop={sug_with[1]:.2f}, Batch={sug_with[2]:.2f}"
+                    + ("\n\n✅ Outside bad region!" if not inside_with else "")
+                )
+            st.caption("👆 This shows you exactly how MOBO's suggestions change when you define a forbidden region. "
+                       "Click 🤖 New Design from MOBO above to use these settings.")
 
         # Log steering changes
         log = st.session_state.steering_log
