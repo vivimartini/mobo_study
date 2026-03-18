@@ -719,15 +719,45 @@ Complete all three steps before continuing:
             st.session_state.task_x3_min = 0.0
             st.session_state.task_x3_max = 0.4
             st.session_state.task_start = time.time()
-            st.session_state.phase = 'task'
+            st.session_state.phase = 'task_intro'
             st.rerun()
     else:
         st.info("Complete all three checklist items above to unlock the start button.")
 
 # ═══════════════════════════════════════════════════════════
+# PHASE 4b: TASK INTRO SCREEN
+# ═══════════════════════════════════════════════════════════
+def show_task_intro():
+    st.markdown("")
+    st.markdown("")
+    col = st.columns([1,2,1])[1]
+    with col:
+        st.markdown("""
+        <div style='text-align:center;padding:60px 20px;background:#1a3a5c;
+                    border-radius:16px;color:white'>
+            <div style='font-size:64px;margin-bottom:16px'>🔬</div>
+            <h2 style='color:white;margin-bottom:8px'>Main Task Starting</h2>
+            <p style='color:#cce0f0;font-size:16px;margin-bottom:24px'>
+                You have <b style='color:white'>15 minutes</b> and
+                <b style='color:white'>10 formal evaluations</b>.<br>
+                Find as many good trade-off designs as possible.<br>
+                Aim for the <b style='color:#7ecfff'>top-right corner</b> of the plot.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("")
+        if st.button("▶️ Start the main task now", type="primary",
+                     use_container_width=True):
+            st.session_state.task_start = time.time()
+            st.session_state.phase = 'task'
+            st.rerun()
+
+# ═══════════════════════════════════════════════════════════
 # PHASE 5: MAIN TASK
 # ═══════════════════════════════════════════════════════════
 def show_task():
+    # Scroll to top on every task render
+    st.components.v1.html("<script>window.parent.document.querySelector('section.main').scrollTo(0,0);</script>", height=0)
     candidates = build_candidates()
     elapsed   = time.time() - st.session_state.task_start
     remaining = max(0, TASK_MINUTES * 60 - elapsed)
@@ -1171,11 +1201,17 @@ def main():
     st.set_page_config(page_title="Cooperative MOBO Study",
                        page_icon="🔬", layout="wide")
     init()
+    # Scroll to top on every phase change
+    st.components.v1.html(
+        "<script>window.parent.document.querySelector('section.main').scrollTo({top:0,behavior:'instant'});</script>",
+        height=0
+    )
     phase = st.session_state.phase
     if   phase == 'consent':       show_consent()
     elif phase == 'tutorial':      show_tutorial()
     elif phase == 'check':         show_check()
     elif phase == 'practice':      show_practice()
+    elif phase == 'task_intro':    show_task_intro()
     elif phase == 'task':          show_task()
     elif phase == 'questionnaire': show_questionnaire()
     elif phase == 'debrief':       show_debrief()
