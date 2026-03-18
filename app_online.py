@@ -237,6 +237,7 @@ def init():
         'practice_mobo_done': False,
         'practice_forbidden_done': False,
         'practice_formal_done': False,
+        'practice_last_suggestion': None,
         # questionnaire
         'questionnaire': {},
     }
@@ -714,8 +715,14 @@ Complete all three steps before continuing:
         st.plotly_chart(make_plot(real_evals, height=350), use_container_width=True)
 
     with col_ctrl:
-        # Design sliders
-        st.markdown("#### Design Parameters")
+        st.markdown("#### Controls")
+        st.markdown("""
+**Do these in order:**
+1. 🚫 Enable forbidden region below + set bounds
+2. 🤖 Click MOBO to get a suggestion
+3. ⭐ Click Formal Evaluate to test it
+        """)
+        st.markdown("---")
         c1, c2, c3 = st.columns(3)
         with c1: px1 = st.slider("x₁", 0.0, 1.0, 0.5, 0.01, key="px1")
         with c2: px2 = st.slider("x₂", 0.0, 1.0, 0.5, 0.01, key="px2")
@@ -757,10 +764,15 @@ Complete all three steps before continuing:
             st.session_state.practice_evals.append(
                 {'type':'mobo','x':sug.tolist(),'f1':None,'f2':None})
             st.session_state.practice_mobo_done = True
+            st.session_state.practice_last_suggestion = sug.tolist()
             if p_forbidden is not None:
                 st.session_state.practice_forbidden_done = True
-            st.success(f"MOBO suggests: x₁={sug[0]:.3f}, x₂={sug[1]:.3f}, x₃={sug[2]:.3f}")
             st.rerun()
+
+        if st.session_state.get('practice_last_suggestion'):
+            s = st.session_state.practice_last_suggestion
+            st.success(f"✅ MOBO suggests: x₁={s[0]:.3f}, x₂={s[1]:.3f}, x₃={s[2]:.3f} — "
+                       f"now click ⭐ Formal Evaluate below to test it!")
 
         st.markdown("---")
         st.markdown("#### Evaluate Current Design")
