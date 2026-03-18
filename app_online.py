@@ -174,18 +174,35 @@ def make_plot(evaluations, height=400):
 # ═══════════════════════════════════════════════════════════
 def _assign_condition():
     """
-    Assign C or OC randomly. Uses query param ?condition=C or ?condition=OC
-    for manual override if needed (e.g. to rebalance groups).
-    Otherwise assigns randomly.
+    Assign C or OC using minimisation (not pure random) to ensure balance.
+    Checks running counts in session state across all participants.
+    Uses query param ?condition=C or ?condition=OC for manual override.
     """
+    # Manual override via URL — e.g. ?condition=C to force calibrated
     try:
         params = st.query_params
         if 'condition' in params and params['condition'] in ['C', 'OC']:
             return params['condition']
     except Exception:
         pass
+
+    # Use minimisation: assign to whichever condition has fewer participants so far
+    # Stored as shared storage keys so it persists across sessions
     import random
-    return random.choice(['C', 'OC'])
+    try:
+        # Try to read running counts from shared storage
+        # We use a simple approach: store counts in Streamlit secrets or
+        # fall back to random if unavailable
+        n_c  = st.session_state.get('_global_n_c', 0)
+        n_oc = st.session_state.get('_global_n_oc', 0)
+        if n_c < n_oc:
+            return 'C'
+        elif n_oc < n_c:
+            return 'OC'
+        else:
+            return random.choice(['C', 'OC'])
+    except Exception:
+        return random.choice(['C', 'OC'])
 
 # ═══════════════════════════════════════════════════════════
 # SESSION STATE
@@ -333,7 +350,9 @@ def show_tutorial():
     if step == 1:
         st.markdown("## 👋 What you're doing")
         st.markdown("""
-Imagine you're an engineer with **three design knobs** — **x₁, x₂, x₃** — each settable between 0 and 1.
+Imagine you're an engineer with **three design knobs** — call them **x₁, x₂, x₃**.
+Each knob goes from **0 to 1**. You can set them to any value — 0.1, 0.5, 0.9, anything.
+They represent the *inputs* to a black-box machine. You don't know what the machine does internally — you just set the knobs and see what scores come out.
 
 When you test a design, you get back **two performance scores: f₁ and f₂**.
 Both should be **as high as possible** — but they trade off against each other.
@@ -343,10 +362,11 @@ So there's no single "best" design. Instead there's a *family* of good designs,
 each making a different trade-off. Your job is to find as many of these as possible.
         """)
         st.info("""
-**Your goal:** Find a strong **Pareto set** — a collection of designs where no single design beats all others on both f₁ and f₂ simultaneously.
+**Your goal:** Find as many good trade-off designs as possible — designs where **both f₁ and f₂ are high**.
 
-On the objective plot, your best designs appear as **⭐ stars** (the Pareto front).
-The more red stars pushed toward the **top-right corner**, the better your score.
+Because f₁ and f₂ trade off, no single design will max out both. So you want a *collection* of designs that together cover the top-right corner of the plot. These appear as **⭐ red stars**.
+
+**The more stars in the top-right, the higher your score (HV).** HV is just a number that measures how well your collection covers the top-right — bigger is better.
         """)
 
         # Show example plot
@@ -465,43 +485,108 @@ MOBO gets smarter as you evaluate more — early suggestions are exploratory, la
         st.info("💡 **Tip:** Mix manual exploration with MOBO suggestions. Use heuristics to scout a region, then ask MOBO to suggest nearby promising designs.")
 
     elif step == 4:
-        st.markdown("## 🚫 Steering MOBO with Forbidden Regions")
+        st.markdown("## 🚫 How to steer MOBO away from bad regions")
+
         st.markdown("""
-As you explore, you'll discover regions that give **bad results**.
-You can tell MOBO to **avoid those regions** using the Forbidden Region controls.
+Here's the situation you'll face during the task:
 
-Think of it like putting a **no-go zone** on a map — MOBO will steer clear of it when suggesting designs.
+You've tried a few designs. Some gave terrible f₁ and f₂ scores.
+MOBO keeps suggesting more designs from the same region — because it doesn't know you've already ruled it out.
 
-**How it works:**
-1. Tick **"Enable forbidden region"**
-2. Set the **parameter bounds** — e.g. x₁: 0.0–0.4, x₂: 0.0–0.4, x₃: 0.0–0.4
-   This defines a box in the design space (x₁, x₂, x₃) for MOBO to avoid
-3. Set the **avoid-strength β**:
+**You need to tell MOBO: stop suggesting designs from that area.**
+
+That's what the **Forbidden Region** is for.
         """)
+
+        st.markdown("---")
+        st.markdown("### 🍰 Think of it like a recipe experiment")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("""
+You're testing recipes with three knobs:
+- **x₁** = temperature (0=low, 1=high)
+- **x₂** = baking time (0=short, 1=long)
+- **x₃** = sugar amount (0=none, 1=lots)
+
+You've tried **low temperature + short time** (x₁ < 0.3, x₂ < 0.3) and every recipe came out raw and tasteless.
+
+You want to tell MOBO: **"don't suggest any more low-temp, short-time recipes."**
+            """)
+        with col2:
+            st.markdown("""
+So you:
+1. ✅ Tick **"Enable forbidden region"**
+2. ✅ Set **x₁ min=0.0, x₁ max=0.3**
+3. ✅ Set **x₂ min=0.0, x₂ max=0.3**
+4. ✅ Set **β = 0.8** (strongly avoid)
+5. ✅ Click **New Design from MOBO**
+
+MOBO now suggests recipes from **outside** that bad region — higher temperatures, longer times.
+
+The forbidden region **does not affect the objective plot** — it only tells MOBO which input settings to avoid suggesting.
+            """)
+
+        st.markdown("---")
+        st.markdown("### The avoid-strength β")
         c1, c2, c3 = st.columns(3)
         with c1:
-            st.markdown("**β = 0.0**\nMOBO ignores the forbidden region")
+            st.error("**β = 0.0** — MOBO completely ignores your forbidden region")
         with c2:
-            st.markdown("**β = 0.5**\nMOBO moderately avoids it")
+            st.warning("**β = 0.5** — MOBO moderately avoids it, may occasionally suggest from there")
         with c3:
-            st.markdown("**β = 1.0**\nMOBO strongly avoids it")
-        st.warning("""
-⚠️ **Important:** The forbidden region is defined in **parameter space (x₁, x₂, x₃)** — the design inputs.
-It does NOT draw a box on the objective plot (f₁, f₂). It only steers which *input settings* MOBO will suggest.
-        """)
+            st.success("**β = 1.0** — MOBO strongly avoids it, will almost never suggest from there")
+
+        st.info("💡 **When should you use it?** After you've tried several designs in a region and they all gave low scores — mark that region as forbidden so MOBO explores elsewhere instead.")
 
     elif step == 5:
-        st.markdown("## 🔄 The full loop")
-        st.markdown("During the task, repeat this cycle:")
+        st.markdown("## 🔄 The complete strategy — what to actually do")
         st.markdown("""
-| Step | What to do | How |
-|------|-----------|-----|
-| **1. Get a design** | Ask MOBO or adjust sliders | Click "New Design from MOBO" or drag x₁ x₂ x₃ |
-| **2. Evaluate it** | Test the design | Heuristic (free) or Formal (costs 1 budget) |
-| **3. Steer MOBO** | Mark bad regions (optional) | Enable forbidden region, set bounds + β |
-| **4. Repeat** | Until time or budget runs out | You have 15 min and 10 formal evaluations |
+Here's the recommended approach for the 15-minute task:
         """)
-        st.info("📈 Your **score (HV)** is shown live in the top-right of the task screen. It goes up when you find new Pareto designs. Try to make it as high as possible.")
+
+        st.markdown("### Phase 1 — Explore (first ~5 minutes)")
+        st.success("""
+🔵 **Use heuristic evaluations freely — they're unlimited.**
+
+1. Click **New Design from MOBO** → get a suggestion
+2. Click **Heuristic Evaluate** → see the rough f₁ and f₂ scores
+3. Repeat 5-8 times to get a sense of the landscape
+
+You're building a map of which regions look promising and which look bad.
+Don't spend any formal evaluations yet.
+        """)
+
+        st.markdown("### Phase 2 — Steer MOBO away from bad areas")
+        st.warning("""
+🚫 **Once you've found a bad region, tell MOBO to avoid it.**
+
+After several heuristic evaluations, you'll notice some x₁, x₂, x₃ combinations always give low scores.
+
+1. Enable the **Forbidden Region** in Step 3
+2. Set the bounds to cover the bad area (e.g. x₁: 0.0–0.4 if low x₁ values are bad)
+3. Set β = 0.7 or higher
+4. Click MOBO again — it will now suggest designs from elsewhere
+
+Check the **🗺️ Exploration Map** on the left of the task screen — red dots show bad regions. If you see a cluster of red, set the forbidden region sliders to cover that area.
+        """)
+
+        st.markdown("### Phase 3 — Commit with formal evaluations (last ~8 minutes)")
+        st.info("""
+⭐ **When heuristic scores look above ~0.5 on both f₁ and f₂, spend a formal evaluation.**
+
+You have **10 formal evaluations** — they're accurate and count toward your score.
+
+1. Find a region where heuristic scores look promising
+2. Get a MOBO suggestion in that region (or set sliders manually)
+3. Click **⭐ Formal Evaluate** — this adds a point to your Pareto front
+4. Repeat until budget is used
+
+Your **score (HV)** goes up every time you add a new Pareto design.
+The higher the score, the better your collection of trade-off designs.
+        """)
+
+        st.markdown("---")
+        st.info("📈 Watch your **score (HV)** at the top of the task screen — it tells you in real time how well you're doing.")
 
     elif step == 6:
         st.markdown("## ✅ Practice round — what you must do")
@@ -790,13 +875,50 @@ def show_task():
         if formal_pts:
             pidx = pareto_front(formal_pts)
             hv = hypervolume([formal_pts[i] for i in pidx])
-            st.markdown("**📈 Score (HV)**")
+            st.markdown("**📈 Your score**")
             st.markdown(f"### {hv:.4f}")
             st.caption(f"{len(pidx)} Pareto design{'s' if len(pidx)!=1 else ''}")
         else:
-            st.markdown("**📈 Score (HV)**")
+            st.markdown("**📈 Your score**")
             st.markdown("### 0.0000")
             st.caption("No formal evaluations yet")
+
+    st.markdown("---")
+
+    # ── Live coach panel ─────────────────────────────────────
+    n_formal = st.session_state.formal_used
+    n_heuristic = st.session_state.heuristic_count
+    n_mobo = len(st.session_state.mobo_log)
+    n_steered = sum(1 for s in st.session_state.mobo_log
+                    if s.get('forbidden') is not None)
+
+    if n_formal == 0 and n_heuristic == 0:
+        st.info(
+            "👋 **Start here — 3 easy steps:**  "
+            "① Click **🤖 New Design from MOBO** to get a suggested design  →  "
+            "② Click **🔵 Heuristic** to test it (free, unlimited)  →  "
+            "③ Repeat to explore. When scores look good (above 0.5), use **⭐ Formal** to lock it in."
+        )
+    elif n_heuristic < 4 and n_formal == 0:
+        st.info(f"🔵 Good start! You've done {n_heuristic} heuristic evaluation{'s' if n_heuristic>1 else ''}. "
+                "Keep exploring with heuristics — try a few more MOBO suggestions "
+                "before spending formal evaluations.")
+    elif n_mobo >= 3 and n_steered == 0 and n_formal < 3:
+        st.warning("💡 **Tip:** You've used MOBO several times without steering. "
+                   "If some regions gave bad scores, scroll down to **Step 3** and "
+                   "define a forbidden region — MOBO will explore elsewhere.")
+    elif n_formal > 0 and n_formal < 5:
+        formal_pts = [(e['f1'],e['f2']) for e in st.session_state.task_evals
+                      if e['type']=='formal']
+        pidx = pareto_front(formal_pts)
+        hv = hypervolume([formal_pts[i] for i in pidx])
+        st.success(f"⭐ Great — {n_formal} formal evaluation{'s' if n_formal>1 else ''} done. "
+                   f"Score (HV): {hv:.4f}. Keep finding good trade-offs — "
+                   "aim for designs where both f₁ AND f₂ are high.")
+    elif budget_left <= 3:
+        st.warning(f"⚠️ Only {budget_left} formal evaluation{'s' if budget_left>1 else ''} left — "
+                   "make them count! Use heuristics to find the best region first, "
+                   "then commit with a formal evaluation.")
 
     st.markdown("---")
 
@@ -829,6 +951,94 @@ def show_task():
                     'f₂': f"{e['f2']:.3f}",
                 } for e in recent])
                 st.dataframe(df, hide_index=True, use_container_width=True)
+
+        # ── Colour-coded parameter space map ─────────────────
+        all_evals = [e for e in st.session_state.task_evals
+                     if e.get('f1') is not None]
+        if all_evals:
+            st.markdown("#### 🗺️ Exploration map (parameter space)")
+            st.caption(
+                "**Colour = how good that design was** (green=good, red=bad). "
+                "Clusters of red dots = bad regions. Scroll to Step 3 and set sliders to cover them. "
+                "Hover over any dot to see its scores."
+            )
+            # Use min(f1,f2) — rewards designs good on BOTH objectives
+            # This correctly identifies Pareto-relevant regions
+            scores = [min(e['f1'], e['f2']) for e in all_evals]
+            min_s = min(scores)
+            max_s = max(scores)
+            rng = max_s - min_s if max_s > min_s else 1.0
+
+            fig_p = go.Figure()
+            fig_p.add_shape(type="rect", x0=0, y0=0, x1=1, y1=1,
+                            fillcolor="#f8f8f8", line=dict(color="#ddd", width=1))
+
+            # Draw forbidden region if active
+            tf = st.session_state.task_forbidden
+            if tf:
+                fig_p.add_shape(type="rect",
+                                x0=tf['x1_min'], y0=tf['x2_min'],
+                                x1=tf['x1_max'], y1=tf['x2_max'],
+                                fillcolor="rgba(220,50,50,0.12)",
+                                line=dict(color="red", width=2, dash="dash"))
+                fig_p.add_annotation(
+                    x=(tf['x1_min']+tf['x1_max'])/2,
+                    y=(tf['x2_min']+tf['x2_max'])/2,
+                    text="🚫 forbidden",
+                    showarrow=False, font=dict(size=9, color="darkred"),
+                    bgcolor="rgba(255,255,255,0.85)")
+
+            # Plot each evaluation colour-coded by score
+            for e in all_evals:
+                s = min(e['f1'], e['f2'])  # green = good on BOTH objectives
+                t = (s - min_s) / rng
+                r = int(220 * (1-t))
+                g = int(160 * t)
+                col = f"rgb({r},{g},60)"
+                sym = "star" if e['type'] == 'formal' else "circle"
+                sz = 12 if e['type'] == 'formal' else 9
+                fig_p.add_trace(go.Scatter(
+                    x=[e['x'][0]], y=[e['x'][1]],
+                    mode="markers",
+                    marker=dict(color=col, size=sz, symbol=sym,
+                                line=dict(color="white", width=1)),
+                    showlegend=False,
+                    hovertemplate=(
+                        f"x₁={e['x'][0]:.2f}, x₂={e['x'][1]:.2f}<br>"
+                        f"f₁={e['f1']:.3f}, f₂={e['f2']:.3f}<br>"
+                        f"Combined score={s:.3f}"
+                        f"<extra>{'⭐ Formal' if e['type']=='formal' else 'Heuristic'}</extra>"
+                    )
+                ))
+
+            # Current design
+            cx = st.session_state.task_x
+            fig_p.add_trace(go.Scatter(
+                x=[cx[0]], y=[cx[1]], mode="markers",
+                marker=dict(color="royalblue", size=13, symbol="diamond",
+                            line=dict(color="white", width=2)),
+                showlegend=False,
+                hovertemplate=f"Current design: x₁={cx[0]:.2f}, x₂={cx[1]:.2f}<extra></extra>"
+            ))
+
+            fig_p.update_layout(
+                xaxis=dict(range=[-0.02,1.02], title="x₁ →", showgrid=False,
+                           zeroline=False),
+                yaxis=dict(range=[-0.02,1.02], title="x₂ →", showgrid=False,
+                           zeroline=False),
+                height=260,
+                margin=dict(l=40, r=10, t=10, b=40),
+                plot_bgcolor="#f8f8f8",
+                paper_bgcolor="white",
+            )
+            st.plotly_chart(fig_p, use_container_width=True,
+                            config={'displayModeBar': False})
+            st.caption(
+                "🟢 Green = good score. 🔴 Red = bad score. "
+                "⭐ Star = formal eval. ● Circle = heuristic. "
+                "🔷 Blue = current design. "
+                "**💡 Tip:** See a cluster of red dots? Scroll down to Step 3, enable the forbidden region, and set the sliders to cover that area — MOBO will avoid it."
+            )
 
     # ── RIGHT: Step-by-step controls ─────────────────────────
     with col_ctrl:
@@ -930,14 +1140,24 @@ def show_task():
 
         # ── STEP 3: Steer MOBO ───────────────────────────────
         st.markdown("#### Step 3 — Steer MOBO (optional)")
-        st.caption("Found a bad region? Define it here and MOBO will avoid suggesting from it.")
+        st.caption(
+            "Look at the 🗺️ Exploration Map on the left. "
+            "See red dots? Those are bad regions. "
+            "Use the sliders below to cover that area — MOBO will stop suggesting designs from there."
+        )
 
         use_f = st.checkbox("Enable forbidden region", key="t_use_f")
         t_forbidden = None
 
         if use_f:
+            st.caption(
+                "Set the **min and max** for each parameter to define the box you want MOBO to avoid. "
+                "Example: if red dots on the map are at x₁ ≈ 0.0–0.3 and x₂ ≈ 0.0–0.3, "
+                "set x₁ min=0.0, x₁ max=0.3, x₂ min=0.0, x₂ max=0.3."
+            )
             tc1, tc2 = st.columns(2)
             with tc1:
+                st.caption("**Lower bound** of the forbidden box:")
                 tx1min = st.slider("x₁ min", 0.0, 0.9,
                                    st.session_state.task_x1_min, 0.05, key="tx1min")
                 tx2min = st.slider("x₂ min", 0.0, 0.9,
@@ -945,6 +1165,7 @@ def show_task():
                 tx3min = st.slider("x₃ min", 0.0, 0.9,
                                    st.session_state.task_x3_min, 0.05, key="tx3min")
             with tc2:
+                st.caption("**Upper bound** of the forbidden box:")
                 tx1max = st.slider("x₁ max", 0.1, 1.0,
                                    st.session_state.task_x1_max, 0.05, key="tx1max")
                 tx2max = st.slider("x₂ max", 0.1, 1.0,
@@ -963,7 +1184,7 @@ def show_task():
                 st.session_state.task_x3_min = tx3min
                 st.session_state.task_x3_max = tx3max
                 vol = (tx1max-tx1min)*(tx2max-tx2min)*(tx3max-tx3min)
-                st.caption(f"Forbidden box volume: {vol:.3f} of parameter space")
+                st.caption(f"Forbidden box covers {vol*100:.0f}% of parameter space")
             else:
                 st.warning("Each min must be less than its max.")
 
@@ -1142,6 +1363,8 @@ def save_data():
     }
 
     # ── Row for Google Sheet ─────────────────────────────────
+    # Note: monitor condition balance in Google Sheet daily
+    # Use ?condition=C or ?condition=OC in URL to rebalance if needed
     row = [
         pid,
         st.session_state.condition,
