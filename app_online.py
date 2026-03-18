@@ -135,34 +135,36 @@ def make_plot(evaluations, height=400):
             if dominated:
                 fig.add_trace(go.Scatter(
                     x=[p[0] for p in dominated], y=[p[1] for p in dominated],
-                    mode='markers', name='Formal (dominated)',
-                    marker=dict(color='salmon', size=10),
-                    hovertemplate='f₁=%{x:.3f}, f₂=%{y:.3f}<extra>Dominated</extra>'))
+                    mode='markers', name='Formal eval (beaten by later design)',
+                    marker=dict(color='#f4a0a0', size=10, symbol='circle'),
+                    hovertemplate='f₁=%{x:.3f}, f₂=%{y:.3f}<extra>Formal (dominated)</extra>'))
             if pareto_pts:
                 fig.add_trace(go.Scatter(
                     x=[p[0] for p in pareto_pts], y=[p[1] for p in pareto_pts],
-                    mode='markers+lines', name='Pareto front ⭐',
-                    marker=dict(color='red', size=12, symbol='star'),
+                    mode='markers+lines', name='⭐ Your best designs (Pareto front)',
+                    marker=dict(color='red', size=16, symbol='star',
+                                line=dict(color='darkred', width=1)),
                     line=dict(color='red', width=2, dash='dot'),
-                    hovertemplate='f₁=%{x:.3f}, f₂=%{y:.3f}<extra>Pareto</extra>'))
+                    hovertemplate='f₁=%{x:.3f}, f₂=%{y:.3f}<extra>✅ Pareto front</extra>'))
                 hv = hypervolume(pareto_pts)
                 fig.add_annotation(text=f"Score (HV): {hv:.4f}",
                                    xref="paper", yref="paper",
                                    x=0.02, y=0.98, showarrow=False,
                                    font=dict(size=11, color="darkred"))
 
-    fig.add_annotation(text="← aim for top-right", xref="paper", yref="paper",
+    fig.add_annotation(text="🎯 aim for top-right corner", xref="paper", yref="paper",
                        x=0.98, y=0.98, showarrow=False,
                        font=dict(size=10, color="green"), xanchor="right")
     fig.update_layout(
-        xaxis_title="f₁  (higher is better →)",
-        yaxis_title="f₂  (higher is better →)",
+        xaxis_title="f₁  ← higher is better →",
+        yaxis_title="f₂  ← higher is better →",
         height=height,
         margin=dict(l=50, r=20, t=20, b=50),
-        legend=dict(x=0.01, y=0.06, bgcolor='rgba(255,255,255,0.85)'),
+        legend=dict(x=0.01, y=0.06, bgcolor='rgba(255,255,255,0.85)',
+                    bordercolor='#ddd', borderwidth=1),
         plot_bgcolor='white', paper_bgcolor='white',
-        xaxis=dict(showgrid=True, gridcolor='#eee', range=[-0.05, 1.1]),
-        yaxis=dict(showgrid=True, gridcolor='#eee', range=[-0.05, 1.1]),
+        xaxis=dict(showgrid=True, gridcolor='#eee', range=[-0.15, 1.1]),
+        yaxis=dict(showgrid=True, gridcolor='#eee', range=[-0.15, 1.1]),
     )
     return fig
 
@@ -348,6 +350,73 @@ each making a different trade-off. Your job is to find as many of these as possi
 On the objective plot, your best designs appear as **⭐ red stars** (the Pareto front).
 The more red stars pushed toward the **top-right corner**, the better your score.
         """)
+
+        # Show example plot
+        st.markdown("#### What the objective plot looks like:")
+        col_bad, col_good = st.columns(2)
+
+        _go = go  # use already-imported plotly
+
+        def _example_plot(title, pareto_pts, dominated_pts, heuristic_pts, color):
+            fig = _go.Figure()
+            if heuristic_pts:
+                fig.add_trace(_go.Scatter(
+                    x=[p[0] for p in heuristic_pts],
+                    y=[p[1] for p in heuristic_pts],
+                    mode="markers", name="Heuristic",
+                    marker=dict(color="steelblue", size=8, symbol="circle-open",
+                                line=dict(width=1.5))))
+            if dominated_pts:
+                fig.add_trace(_go.Scatter(
+                    x=[p[0] for p in dominated_pts],
+                    y=[p[1] for p in dominated_pts],
+                    mode="markers", name="Formal (dominated)",
+                    marker=dict(color="#f4a0a0", size=10)))
+            if pareto_pts:
+                srt = sorted(pareto_pts, key=lambda p: p[0])
+                fig.add_trace(_go.Scatter(
+                    x=[p[0] for p in srt], y=[p[1] for p in srt],
+                    mode="markers+lines", name="⭐ Pareto front",
+                    marker=dict(color="red", size=16, symbol="star",
+                                line=dict(color="darkred", width=1)),
+                    line=dict(color="red", width=2, dash="dot")))
+            fig.add_annotation(text="aim for top-right ↗",
+                               xref="paper", yref="paper",
+                               x=0.98, y=0.98, showarrow=False,
+                               font=dict(size=10, color="green"), xanchor="right")
+            fig.update_layout(
+                title=dict(text=title, font=dict(color=color, size=14)),
+                xaxis_title="f₁ →", yaxis_title="f₂ →",
+                height=280, margin=dict(l=40,r=10,t=40,b=40),
+                plot_bgcolor="white", paper_bgcolor="white",
+                showlegend=False,
+                xaxis=dict(showgrid=True, gridcolor="#eee", range=[-0.05,1.1]),
+                yaxis=dict(showgrid=True, gridcolor="#eee", range=[-0.05,1.1]),
+            )
+            return fig
+
+        with col_bad:
+            bad_fig = _example_plot(
+                "❌ Poor result — points clustered, low scores",
+                pareto_pts=[(0.15, 0.12), (0.18, 0.08)],
+                dominated_pts=[(0.10, 0.10), (0.12, 0.09)],
+                heuristic_pts=[(0.11, 0.13), (0.14, 0.11), (0.09, 0.15)],
+                color="red"
+            )
+            st.plotly_chart(bad_fig, use_container_width=True)
+            st.caption("Points are low and clustered near the bottom-left. Score (HV) is low.")
+
+        with col_good:
+            good_fig = _example_plot(
+                "✅ Good result — spread across top-right",
+                pareto_pts=[(0.85, 0.15), (0.65, 0.55), (0.40, 0.75), (0.15, 0.90)],
+                dominated_pts=[(0.50, 0.40), (0.60, 0.30), (0.30, 0.60)],
+                heuristic_pts=[(0.70, 0.20), (0.45, 0.65), (0.20, 0.80),
+                               (0.55, 0.45), (0.35, 0.70)],
+                color="green"
+            )
+            st.plotly_chart(good_fig, use_container_width=True)
+            st.caption("Red stars spread across the top-right — good trade-offs found. Score (HV) is high.")
 
     elif step == 2:
         st.markdown("## 🧪 Testing a design")
@@ -709,10 +778,12 @@ def show_task():
     # ── LEFT: Plot + history ─────────────────────────────────
     with col_plot:
         st.markdown("#### Objective Plot")
-        st.caption("🔴 Red stars = Pareto front (best formal designs). "
-                   "🩷 Salmon = formal but dominated. "
-                   "🔵 Blue = heuristic (noisy). "
-                   "Aim to push red stars toward the top-right.")
+        st.caption(
+            "⭐ **Red stars** = your best designs (Pareto front) — aim to push these toward the top-right corner. "
+            "🔵 **Blue circles** = heuristic evaluations (rough estimates, free). "
+            "🔴 **Pink dots** = formal evaluations that were later beaten by better designs. "
+            "Negative values are possible due to measurement noise — keep exploring!"
+        )
         st.plotly_chart(make_plot(st.session_state.task_evals, height=420),
                         use_container_width=True)
 
