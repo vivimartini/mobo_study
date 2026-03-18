@@ -1019,10 +1019,14 @@ def save_data():
     else:
         mean_nn = None
 
-    data = {
-        'participant_id': st.session_state.participant_id,
+    q = st.session_state.questionnaire
+    pid = st.session_state.participant_id
+    ts  = datetime.now().isoformat()
+
+    full_data = {
+        'participant_id': pid,
         'condition': st.session_state.condition,
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': ts,
         'demographics': st.session_state.demographics,
         'final_hv': final_hv,
         'n_formal_used': n_formal,
@@ -1030,71 +1034,66 @@ def save_data():
         'mean_nn_dist': mean_nn,
         'n_mobo_suggestions': len(st.session_state.mobo_log),
         'n_steering_edits': len(st.session_state.steering_log),
-        'beta_values': [s['beta_displayed'] for s in st.session_state.mobo_log],
         'mean_d_to_forbidden': float(np.mean(d_vals)) if d_vals else None,
         'd_to_forbidden_all': d_vals,
-        'questionnaire': st.session_state.questionnaire,
+        'questionnaire': q,
         'task_evaluations': st.session_state.task_evals,
         'mobo_log': st.session_state.mobo_log,
         'steering_log': st.session_state.steering_log,
     }
 
-    pid = st.session_state.participant_id
-    ts  = datetime.now().strftime('%Y%m%d_%H%M%S')
-    key = f"p_{pid}_{st.session_state.condition}_{ts}"
-    payload = json.dumps(data, default=str, indent=2)
+    # ── Row for Google Sheet ─────────────────────────────────
+    row = [
+        pid,
+        st.session_state.condition,
+        ts,
+        st.session_state.demographics.get('age',''),
+        st.session_state.demographics.get('sex',''),
+        st.session_state.demographics.get('handedness',''),
+        st.session_state.demographics.get('mobo_exp',''),
+        round(final_hv, 6),
+        n_formal,
+        round(hv_per_formal, 6),
+        round(mean_nn, 6) if mean_nn else '',
+        len(st.session_state.mobo_log),
+        len(st.session_state.steering_log),
+        round(float(np.mean(d_vals)), 6) if d_vals else '',
+        q.get('agency_control',''),
+        q.get('agency_understanding',''),
+        q.get('agency_ownership',''),
+        q.get('engagement',''),
+        q.get('reuse',''),
+        q.get('beta_fidelity',''),
+        q.get('mobo_trust',''),
+        q.get('forbidden_useful',''),
+        q.get('tlx_mental',''),
+        q.get('tlx_temporal',''),
+        q.get('tlx_performance',''),
+        q.get('tlx_effort',''),
+        q.get('tlx_frustration',''),
+        q.get('open',''),
+    ]
 
-    # Save individual JSON (persists on Streamlit Cloud)
-    import os, csv
-    os.makedirs('study_data', exist_ok=True)
-    fname = f'study_data/{key}.json'
+    # ── POST to Google Apps Script web app ───────────────────
+    # This is a simple no-auth endpoint that appends a row to your sheet
+    APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzReoJpqc6i1LDgmslEtR67KVr0OMEiMzjw2bjlMlCuL8k3ZDnH9Edzjb3QPWyyWcWi/exec"
     try:
-        with open(fname, 'w') as f:
-            f.write(payload)
+        import requests
+        resp = requests.post(
+            APPS_SCRIPT_URL,
+            json={'row': row},
+            timeout=15
+        )
+        if resp.status_code == 200:
+            st.session_state['save_status'] = 'sheet_ok'
     except Exception as e:
-        st.warning(f'Could not save JSON: {e}')
+        st.session_state['save_status'] = f'sheet_failed: {e}'
 
-    # Append summary row to CSV for easy analysis
-    csv_path = 'study_data/results_summary.csv'
-    summary_row = {
-        'participant_id': pid,
-        'condition': data['condition'],
-        'timestamp': data['timestamp'],
-        'final_hv': data['final_hv'],
-        'n_formal_used': data['n_formal_used'],
-        'hv_per_formal': data['hv_per_formal'],
-        'mean_nn_dist': data['mean_nn_dist'],
-        'n_mobo_suggestions': data['n_mobo_suggestions'],
-        'n_steering_edits': data['n_steering_edits'],
-        'mean_d_to_forbidden': data['mean_d_to_forbidden'],
-        'agency_control': data['questionnaire'].get('agency_control',''),
-        'agency_understanding': data['questionnaire'].get('agency_understanding',''),
-        'agency_ownership': data['questionnaire'].get('agency_ownership',''),
-        'engagement': data['questionnaire'].get('engagement',''),
-        'reuse': data['questionnaire'].get('reuse',''),
-        'beta_fidelity': data['questionnaire'].get('beta_fidelity',''),
-        'mobo_trust': data['questionnaire'].get('mobo_trust',''),
-        'forbidden_useful': data['questionnaire'].get('forbidden_useful',''),
-        'tlx_mental': data['questionnaire'].get('tlx_mental',''),
-        'tlx_temporal': data['questionnaire'].get('tlx_temporal',''),
-        'tlx_performance': data['questionnaire'].get('tlx_performance',''),
-        'tlx_effort': data['questionnaire'].get('tlx_effort',''),
-        'tlx_frustration': data['questionnaire'].get('tlx_frustration',''),
-        'open_feedback': data['questionnaire'].get('open',''),
-    }
-    try:
-        file_exists = os.path.exists(csv_path)
-        with open(csv_path, 'a', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=summary_row.keys())
-            if not file_exists:
-                writer.writeheader()
-            writer.writerow(summary_row)
-    except Exception as e:
-        st.warning(f'Could not save CSV: {e}')
-
-    # Store in session for download button
+    # ── Always store full JSON in session for download button ─
+    key = f"p_{pid}_{st.session_state.condition}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     st.session_state['saved_key'] = key
-    st.session_state['saved_data'] = payload
+    st.session_state['saved_data'] = json.dumps(full_data, default=str, indent=2)
+
 
 # ═══════════════════════════════════════════════════════════
 # MAIN ROUTER
