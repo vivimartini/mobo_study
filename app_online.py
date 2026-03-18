@@ -1238,9 +1238,16 @@ def show_task():
         st.info("👈 **Step 3 — Steer MOBO** is on the left, below the exploration map. "
                 "Once you've done some evaluations, look for red dots and set the forbidden region there.")
 
-    # Timer refresh — every 10s during task only
-    if st.session_state.phase == 'task' and budget_left > 0 and remaining > 0:
-        time.sleep(10)
+    # Timer refresh — only when no pending suggestion and no recent result
+    # Don't refresh if participant just clicked MOBO or evaluated — let them see the result
+    has_pending = st.session_state.pending_suggestion is not None
+    has_result  = st.session_state.last_result is not None
+    if (st.session_state.phase == 'task'
+            and budget_left > 0
+            and remaining > 0
+            and not has_pending
+            and not has_result):
+        time.sleep(15)
         st.rerun()
 
 # ═══════════════════════════════════════════════════════════
