@@ -1064,41 +1064,44 @@ def show_task():
                 t = max(0.0, min(1.0, t))
                 return f"rgb({int(220*(1-t))},{int(160*t)},60)"
 
-            if heur:
-                fig_p.add_trace(go.Scatter(
-                    x=[jitter(e['x'][0], i*2) for i, e in enumerate(heur)],
-                    y=[jitter(e['x'][1], i*2+1) for i, e in enumerate(heur)],
-                    mode="markers",
-                    marker=dict(
-                        color=[score_color(e) for e in heur],
-                        size=10, symbol="circle",
-                        line=dict(color="white", width=1)
-                    ),
-                    showlegend=False,
-                    text=[f"LR={e['x'][0]:.2f}, Drop={e['x'][1]:.2f}<br>"
-                          f"Accuracy={e['f1']:.3f}, Speed={e['f2']:.3f}<br>"
-                          f"Quality: {'🟢 Good' if min(e['f1'],e['f2'])>0.3 else '🔴 Bad'}"
-                          for e in heur],
-                    hovertemplate="%{text}<extra>Heuristic</extra>"
-                ))
+            try:
+                if heur:
+                    fig_p.add_trace(go.Scatter(
+                        x=[jitter(e['x'][0], i*2) for i, e in enumerate(heur)],
+                        y=[jitter(e['x'][1], i*2+1) for i, e in enumerate(heur)],
+                        mode="markers",
+                        marker=dict(
+                            color=[score_color(e) for e in heur],
+                            size=10, symbol="circle",
+                            line=dict(color="white", width=1)
+                        ),
+                        showlegend=False,
+                        text=[f"LR={e['x'][0]:.2f}, Drop={e['x'][1]:.2f}<br>"
+                              f"Accuracy={e['f1']:.3f}, Speed={e['f2']:.3f}<br>"
+                              f"Quality: {'🟢 Good' if min(e['f1'],e['f2'])>0.3 else '🔴 Bad'}"
+                              for e in heur],
+                        hovertemplate="%{text}<extra>Heuristic</extra>"
+                    ))
 
-            if form:
-                fig_p.add_trace(go.Scatter(
-                    x=[jitter(e['x'][0], (i+100)*2) for i, e in enumerate(form)],
-                    y=[jitter(e['x'][1], (i+100)*2+1) for i, e in enumerate(form)],
-                    mode="markers",
-                    marker=dict(
-                        color=[score_color(e) for e in form],
-                        size=14, symbol="star",
-                        line=dict(color="white", width=1)
-                    ),
-                    showlegend=False,
-                    text=[f"LR={e['x'][0]:.2f}, Drop={e['x'][1]:.2f}<br>"
-                          f"Accuracy={e['f1']:.3f}, Speed={e['f2']:.3f}<br>"
-                          f"Quality: {'🟢 Good' if min(e['f1'],e['f2'])>0.3 else '🔴 Bad'}"
-                          for e in form],
-                    hovertemplate="%{text}<extra>⭐ Formal</extra>"
-                ))
+                if form:
+                    fig_p.add_trace(go.Scatter(
+                        x=[jitter(e['x'][0], (i+100)*2) for i, e in enumerate(form)],
+                        y=[jitter(e['x'][1], (i+100)*2+1) for i, e in enumerate(form)],
+                        mode="markers",
+                        marker=dict(
+                            color=[score_color(e) for e in form],
+                            size=14, symbol="star",
+                            line=dict(color="white", width=1)
+                        ),
+                        showlegend=False,
+                        text=[f"LR={e['x'][0]:.2f}, Drop={e['x'][1]:.2f}<br>"
+                              f"Accuracy={e['f1']:.3f}, Speed={e['f2']:.3f}<br>"
+                              f"Quality: {'🟢 Good' if min(e['f1'],e['f2'])>0.3 else '🔴 Bad'}"
+                              for e in form],
+                        hovertemplate="%{text}<extra>⭐ Formal</extra>"
+                    ))
+            except Exception as _map_err:
+                st.caption(f"Map rendering note: {_map_err}")
 
             # Current design
             cx = st.session_state.task_x
