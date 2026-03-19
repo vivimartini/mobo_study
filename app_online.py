@@ -172,6 +172,11 @@ def make_plot(evaluations, height=400):
 # ═══════════════════════════════════════════════════════════
 # CONDITION ASSIGNMENT — balanced random assignment
 # ═══════════════════════════════════════════════════════════
+def _generate_pid():
+    """Generate a random anonymous participant ID like P-4729"""
+    import random
+    return f"P-{random.randint(1000, 9999)}"
+
 def _assign_condition():
     """
     Assign C or OC using minimisation (not pure random) to ensure balance.
@@ -211,7 +216,7 @@ def init():
     defaults = {
         'phase': 'consent',
         'condition': _assign_condition(),
-        'participant_id': '',
+        'participant_id': _generate_pid(),
         'demographics': {},
         'consent_step': 'pis',
         'tutorial_step': 1,
@@ -313,14 +318,13 @@ This study investigates how user performance and experience in computer-based ta
         c4 = st.checkbox("4. I agree data may be stored anonymously and used for research.")
         c5 = st.checkbox("5. I agree to take part in this study.")
         st.markdown("")
-        pid = st.text_input("**Participant ID** (given by researcher):", key="pid_input")
-        if c1 and c2 and c3 and c4 and c5 and pid.strip():
+        st.caption(f"Your anonymous participant ID: **{st.session_state.participant_id}**")
+        if c1 and c2 and c3 and c4 and c5:
             if st.button("I consent → proceed to demographics", type="primary"):
-                st.session_state.participant_id = pid.strip()
                 st.session_state.consent_step = 'demographics'
                 st.rerun()
         else:
-            st.info("Please tick all boxes and enter your participant ID to continue.")
+            st.info("Please tick all boxes to continue.")
 
     elif step == 'demographics':
         st.markdown("### Demographics")
