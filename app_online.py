@@ -1124,32 +1124,34 @@ def show_task():
                             config={'displayModeBar': False})
 
             # Smart advice based on what's on the map
-            red_evals = [e for e, s in zip(all_evals, scores)
-                         if (s - min_s)/rng < 0.3]
-            green_evals = [e for e, s in zip(all_evals, scores)
-                           if (s - min_s)/rng > 0.6]
+            try:
+                safe_rng = rng if rng > 0.001 else 1.0
+                red_evals = [e for e, s in zip(all_evals, scores)
+                             if (s - min_s)/safe_rng < 0.3]
+                green_evals = [e for e, s in zip(all_evals, scores)
+                               if (s - min_s)/safe_rng > 0.6]
 
-            if len(set([round(e['x'][0],1) for e in all_evals])) == 1:
-                st.warning(
-                    "⚠️ All your evaluations are at the same x₁, x₂ position. "
-                    "Try clicking **🤖 New Design from MOBO** to explore different regions, "
-                    "or adjust the x₁, x₂, x₃ sliders manually in Step 1."
-                )
-            elif red_evals:
-                avg_x1 = sum(e['x'][0] for e in red_evals) / len(red_evals)
-                avg_x2 = sum(e['x'][1] for e in red_evals) / len(red_evals)
-                st.error(
-                    f"🔴 **Bad regions found** near x₁≈{avg_x1:.1f}, x₂≈{avg_x2:.1f}. "
-                    f"Scroll down to Step 3, enable the forbidden region, "
-                    f"and set sliders to cover that area."
-                )
-            elif green_evals:
-                avg_x1 = sum(e['x'][0] for e in green_evals) / len(green_evals)
-                avg_x2 = sum(e['x'][1] for e in green_evals) / len(green_evals)
-                st.success(
-                    f"🟢 **Good region found** near x₁≈{avg_x1:.1f}, x₂≈{avg_x2:.1f}. "
-                    f"Keep exploring nearby — use ⭐ Formal Evaluate when scores look consistently good."
-                )
+                if len(set([round(e['x'][0],1) for e in all_evals])) == 1:
+                    st.warning(
+                        "⚠️ All your evaluations are at the same position. "
+                        "Click **🤖 Get next hyperparameters from MOBO** to explore different regions!"
+                    )
+                elif red_evals:
+                    avg_x1 = sum(e['x'][0] for e in red_evals) / len(red_evals)
+                    avg_x2 = sum(e['x'][1] for e in red_evals) / len(red_evals)
+                    st.error(
+                        f"🔴 **Bad regions found** near LR≈{avg_x1:.1f}, Dropout≈{avg_x2:.1f}. "
+                        f"Enable the forbidden region below and set sliders to cover that area."
+                    )
+                elif green_evals:
+                    avg_x1 = sum(e['x'][0] for e in green_evals) / len(green_evals)
+                    avg_x2 = sum(e['x'][1] for e in green_evals) / len(green_evals)
+                    st.success(
+                        f"🟢 **Good region found** near LR≈{avg_x1:.1f}, Dropout≈{avg_x2:.1f}. "
+                        f"Keep exploring nearby — use ⭐ Formal when scores look consistently good."
+                    )
+            except Exception:
+                pass
 
                 # ── Step 3 HERE — directly below the map ─────────────
         st.markdown("---")
