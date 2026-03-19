@@ -345,7 +345,19 @@ def show_tutorial():
     step = st.session_state.tutorial_step
     TOTAL = 6
 
+    st.markdown(
+        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;"
+        "font-size:13px;margin-bottom:8px'>📍 You are here: <b>Tutorial</b> &nbsp;|&nbsp; "
+        "Consent → <u><b>Tutorial</b></u> → Check → Practice → Main Task → Questionnaire → Debrief"
+        "</div>", unsafe_allow_html=True
+    )
+    st.markdown(
+        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 You are here: <b>Tutorial</b> &nbsp;|&nbsp; Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>",
+        unsafe_allow_html=True
+    )
     st.markdown(f"**Tutorial — Step {step} of {TOTAL}**")
+    st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>You are here: <b>Tutorial</b> | Consent - Tutorial - Check - Practice - Main Task - Questionnaire - Debrief</div>", unsafe_allow_html=True)
+
     st.progress(step / TOTAL)
     st.markdown("---")
 
@@ -381,6 +393,10 @@ Because accuracy and speed trade off, no single combination wins on both. You wa
 
         # Show example plot
         st.markdown("#### What the objective plot looks like:")
+        st.info("📊 **Examples only** — these show what good vs bad results look like. You don't need to click anything here.")
+        st.info("📊 **These are examples only** — illustrating what good vs bad results look like. You don't need to interact with them.")
+        st.info("📊 **These are examples only** — they show what good vs bad results look like. "
+                "You don't need to interact with them. Your real plot appears in the main task.")
         col_bad, col_good = st.columns(2)
 
         _go = go  # use already-imported plotly
@@ -632,7 +648,19 @@ The higher the score, the better your collection of trade-off designs.
 # PHASE 3: COMPREHENSION CHECK
 # ═══════════════════════════════════════════════════════════
 def show_check():
+    st.markdown(
+        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;"
+        "font-size:13px;margin-bottom:8px'>📍 You are here: <b>Comprehension Check</b> &nbsp;|&nbsp; "
+        "Consent → Tutorial → <u><b>Check</b></u> → Practice → Main Task → Questionnaire → Debrief"
+        "</div>", unsafe_allow_html=True
+    )
+    st.markdown(
+        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 You are here: <b>Comprehension Check</b> &nbsp;|&nbsp; Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>",
+        unsafe_allow_html=True
+    )
     st.title("Comprehension Check")
+    st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>You are here: <b>Comprehension Check</b> | Consent - Tutorial - Check - Practice - Main Task - Questionnaire - Debrief</div>", unsafe_allow_html=True)
+
     st.markdown("Answer at least **3 out of 4** correctly to proceed. You have one reattempt.")
     st.markdown("---")
 
@@ -671,6 +699,35 @@ def show_check():
             st.error("Please answer all questions.")
             return
         score = sum(answers[i] == Qs[i][1][Qs[i][2]] for i in range(4))
+        # Show which answers were right/wrong
+        st.markdown("**Your answers:**")
+        for i, (q, opts, correct_idx) in enumerate(Qs):
+            user_ans = answers[i]
+            correct_ans = opts[correct_idx]
+            if user_ans == correct_ans:
+                st.success(f"✅ Q{i+1}: Correct — {correct_ans}")
+            else:
+                st.error(f"❌ Q{i+1}: You answered '{user_ans}' — correct answer: '{correct_ans}'")
+        st.markdown("")
+
+        st.markdown("**Your answers:**")
+        for i, (q, opts, correct_idx) in enumerate(Qs):
+            correct_ans = opts[correct_idx]
+            if answers[i] == correct_ans:
+                st.success(f"✅ Q{i+1}: Correct")
+            else:
+                st.error(f"❌ Q{i+1}: You said '{answers[i]}' — correct: '{correct_ans}'")
+        st.markdown("")
+
+        st.markdown("**Your answers:**")
+        for i, (q, opts, correct_idx) in enumerate(Qs):
+            correct_ans = opts[correct_idx]
+            if answers[i] == correct_ans:
+                st.success(f"✅ Q{i+1}: Correct")
+            else:
+                st.error(f"❌ Q{i+1}: You said '{answers[i]}' — correct: '{correct_ans}'")
+        st.markdown("")
+
         if score >= 3:
             st.success(f"✅ Passed ({score}/4). Moving to practice round...")
             st.session_state.phase = 'practice'
@@ -700,7 +757,19 @@ def show_practice():
     all_done      = mobo_done and forbidden_done and formal_done
 
     # Header with live checklist
+    st.markdown(
+        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;"
+        "font-size:13px;margin-bottom:8px'>📍 You are here: <b>Practice Round</b> &nbsp;|&nbsp; "
+        "Consent → Tutorial → Check → <u><b>Practice</b></u> → Main Task → Questionnaire → Debrief"
+        "</div>", unsafe_allow_html=True
+    )
+    st.markdown(
+        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 You are here: <b>Practice Round</b> &nbsp;|&nbsp; Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>",
+        unsafe_allow_html=True
+    )
     st.markdown("## 🛠️ Practice Round")
+    st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>You are here: <b>Practice Round</b> | Consent - Tutorial - Check - Practice - Main Task - Questionnaire - Debrief</div>", unsafe_allow_html=True)
+
     st.markdown("""
 <div style='background:#e8f4fd;padding:14px 18px;border-radius:8px;border-left:4px solid #1a7abf'>
 <b>Practice task:</b> Get familiar with the interface. Nothing here counts toward your real task.<br><br>
@@ -875,7 +944,17 @@ def show_task():
         st.rerun()
 
     # ── Header ───────────────────────────────────────────────
+    st.markdown(
+        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 You are here: <b>Main Task</b> &nbsp;|&nbsp; Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>",
+        unsafe_allow_html=True
+    )
     st.markdown("## 🧠 Neural Network Hyperparameter Tuning Task")
+    st.markdown(
+        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;"
+        "font-size:13px;margin-bottom:8px'>📍 You are here: <b>Main Task</b> "
+        "| Consent → Tutorial → Check → Practice → <b>Main Task</b> → Questionnaire → Debrief"
+        "</div>", unsafe_allow_html=True
+    )
     st.info("**Your goal:** Find as many good trade-off designs as possible — both f₁ and f₂ high. "
             "Top-right corner of the plot = where you want to be. "
             "Use MOBO suggestions and steer it away from bad regions.")
