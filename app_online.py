@@ -355,8 +355,8 @@ def show_tutorial():
         "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 You are here: <b>Tutorial</b> &nbsp;|&nbsp; Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>",
         unsafe_allow_html=True
     )
+    st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 <b>Stage: Tutorial</b> | Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>", unsafe_allow_html=True)
     st.markdown(f"**Tutorial — Step {step} of {TOTAL}**")
-    st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>You are here: <b>Tutorial</b> | Consent - Tutorial - Check - Practice - Main Task - Questionnaire - Debrief</div>", unsafe_allow_html=True)
 
     st.progress(step / TOTAL)
     st.markdown("---")
@@ -393,10 +393,8 @@ Because accuracy and speed trade off, no single combination wins on both. You wa
 
         # Show example plot
         st.markdown("#### What the objective plot looks like:")
-        st.info("📊 **Examples only** — these show what good vs bad results look like. You don't need to click anything here.")
-        st.info("📊 **These are examples only** — illustrating what good vs bad results look like. You don't need to interact with them.")
-        st.info("📊 **These are examples only** — they show what good vs bad results look like. "
-                "You don't need to interact with them. Your real plot appears in the main task.")
+        st.info("📊 **Examples only** — these show what a good vs bad result looks like. "
+                "You don't need to click anything. Your real plot appears in the main task.")
         col_bad, col_good = st.columns(2)
 
         _go = go  # use already-imported plotly
@@ -658,8 +656,8 @@ def show_check():
         "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 You are here: <b>Comprehension Check</b> &nbsp;|&nbsp; Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>",
         unsafe_allow_html=True
     )
+    st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 <b>Stage: Comprehension Check</b> | Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>", unsafe_allow_html=True)
     st.title("Comprehension Check")
-    st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>You are here: <b>Comprehension Check</b> | Consent - Tutorial - Check - Practice - Main Task - Questionnaire - Debrief</div>", unsafe_allow_html=True)
 
     st.markdown("Answer at least **3 out of 4** correctly to proceed. You have one reattempt.")
     st.markdown("---")
@@ -767,8 +765,8 @@ def show_practice():
         "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 You are here: <b>Practice Round</b> &nbsp;|&nbsp; Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>",
         unsafe_allow_html=True
     )
+    st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 <b>Stage: Practice Round</b> | Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>", unsafe_allow_html=True)
     st.markdown("## 🛠️ Practice Round")
-    st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>You are here: <b>Practice Round</b> | Consent - Tutorial - Check - Practice - Main Task - Questionnaire - Debrief</div>", unsafe_allow_html=True)
 
     st.markdown("""
 <div style='background:#e8f4fd;padding:14px 18px;border-radius:8px;border-left:4px solid #1a7abf'>
@@ -948,6 +946,7 @@ def show_task():
         "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 You are here: <b>Main Task</b> &nbsp;|&nbsp; Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>",
         unsafe_allow_html=True
     )
+    st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 <b>Stage: Main Task</b> | Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>", unsafe_allow_html=True)
     st.markdown("## 🧠 Neural Network Hyperparameter Tuning Task")
     st.markdown(
         "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;"
@@ -1089,32 +1088,52 @@ def show_task():
 
             # Plot with jitter so overlapping dots are visible
             import random as _random
-            _random.seed(0)
-            for e in all_evals:
+            _random.seed(42)
+
+            # Separate formals and heuristics for batch plotting
+            heur = [e for e in all_evals if e['type'] == 'heuristic']
+            form = [e for e in all_evals if e['type'] == 'formal']
+
+            def jitter(v): return max(0.02, min(0.98, v + _random.uniform(-0.03, 0.03)))
+            def score_color(e):
                 s = min(e['f1'], e['f2'])
                 t = (s - min_s) / rng
-                r = int(220 * (1-t))
-                g = int(160 * t)
-                col = f"rgb({r},{g},60)"
-                sym = "star" if e['type'] == 'formal' else "circle"
-                sz  = 13 if e['type'] == 'formal' else 9
-                # Add small jitter so stacked dots are visible
-                jx = e['x'][0] + _random.uniform(-0.02, 0.02)
-                jy = e['x'][1] + _random.uniform(-0.02, 0.02)
-                jx = max(0.01, min(0.99, jx))
-                jy = max(0.01, min(0.99, jy))
+                return f"rgb({int(220*(1-t))},{int(160*t)},60)"
+
+            if heur:
                 fig_p.add_trace(go.Scatter(
-                    x=[jx], y=[jy],
+                    x=[jitter(e['x'][0]) for e in heur],
+                    y=[jitter(e['x'][1]) for e in heur],
                     mode="markers",
-                    marker=dict(color=col, size=sz, symbol=sym,
-                                line=dict(color="white", width=1)),
+                    marker=dict(
+                        color=[score_color(e) for e in heur],
+                        size=10, symbol="circle",
+                        line=dict(color="white", width=1)
+                    ),
                     showlegend=False,
-                    hovertemplate=(
-                        f"x₁={e['x'][0]:.2f}, x₂={e['x'][1]:.2f}, x₃={e['x'][2]:.2f}<br>"
-                        f"f₁={e['f1']:.3f}, f₂={e['f2']:.3f}<br>"
-                        f"Quality: {'🟢 Good' if t > 0.6 else '🟡 Mediocre' if t > 0.3 else '🔴 Bad'}"
-                        f"<extra>{'⭐ Formal' if e['type']=='formal' else 'Heuristic'}</extra>"
-                    )
+                    text=[f"LR={e['x'][0]:.2f}, Drop={e['x'][1]:.2f}<br>"
+                          f"Accuracy={e['f1']:.3f}, Speed={e['f2']:.3f}<br>"
+                          f"Quality: {'🟢 Good' if min(e['f1'],e['f2'])>0.3 else '🔴 Bad'}"
+                          for e in heur],
+                    hovertemplate="%{text}<extra>Heuristic</extra>"
+                ))
+
+            if form:
+                fig_p.add_trace(go.Scatter(
+                    x=[jitter(e['x'][0]) for e in form],
+                    y=[jitter(e['x'][1]) for e in form],
+                    mode="markers",
+                    marker=dict(
+                        color=[score_color(e) for e in form],
+                        size=14, symbol="star",
+                        line=dict(color="white", width=1)
+                    ),
+                    showlegend=False,
+                    text=[f"LR={e['x'][0]:.2f}, Drop={e['x'][1]:.2f}<br>"
+                          f"Accuracy={e['f1']:.3f}, Speed={e['f2']:.3f}<br>"
+                          f"Quality: {'🟢 Good' if min(e['f1'],e['f2'])>0.3 else '🔴 Bad'}"
+                          for e in form],
+                    hovertemplate="%{text}<extra>⭐ Formal</extra>"
                 ))
 
             # Current design
