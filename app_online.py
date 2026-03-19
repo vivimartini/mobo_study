@@ -1028,7 +1028,8 @@ def show_task():
             fig_p = go.Figure()
             fig_p.add_shape(type="rect", x0=0, y0=0, x1=1, y1=1,
                             fillcolor="#f8f8f8",
-                            line=dict(color="#ddd", width=1))
+                            line=dict(color="#ddd", width=1),
+                            layer="below")
 
             # Draw forbidden region if active
             tf = st.session_state.task_forbidden
@@ -1037,7 +1038,8 @@ def show_task():
                                 x0=tf['x1_min'], y0=tf['x2_min'],
                                 x1=tf['x1_max'], y1=tf['x2_max'],
                                 fillcolor="rgba(220,50,50,0.12)",
-                                line=dict(color="red", width=2, dash="dash"))
+                                line=dict(color="red", width=2, dash="dash"),
+                                layer="below")
                 fig_p.add_annotation(
                     x=(tf['x1_min']+tf['x1_max'])/2,
                     y=(tf['x2_min']+tf['x2_max'])/2,
