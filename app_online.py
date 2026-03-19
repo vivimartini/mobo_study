@@ -345,16 +345,6 @@ def show_tutorial():
     step = st.session_state.tutorial_step
     TOTAL = 6
 
-    st.markdown(
-        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;"
-        "font-size:13px;margin-bottom:8px'>📍 You are here: <b>Tutorial</b> &nbsp;|&nbsp; "
-        "Consent → <u><b>Tutorial</b></u> → Check → Practice → Main Task → Questionnaire → Debrief"
-        "</div>", unsafe_allow_html=True
-    )
-    st.markdown(
-        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 You are here: <b>Tutorial</b> &nbsp;|&nbsp; Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>",
-        unsafe_allow_html=True
-    )
     st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 <b>Stage: Tutorial</b> | Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>", unsafe_allow_html=True)
     st.markdown(f"**Tutorial — Step {step} of {TOTAL}**")
 
@@ -646,16 +636,6 @@ The higher the score, the better your collection of trade-off designs.
 # PHASE 3: COMPREHENSION CHECK
 # ═══════════════════════════════════════════════════════════
 def show_check():
-    st.markdown(
-        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;"
-        "font-size:13px;margin-bottom:8px'>📍 You are here: <b>Comprehension Check</b> &nbsp;|&nbsp; "
-        "Consent → Tutorial → <u><b>Check</b></u> → Practice → Main Task → Questionnaire → Debrief"
-        "</div>", unsafe_allow_html=True
-    )
-    st.markdown(
-        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 You are here: <b>Comprehension Check</b> &nbsp;|&nbsp; Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>",
-        unsafe_allow_html=True
-    )
     st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 <b>Stage: Comprehension Check</b> | Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>", unsafe_allow_html=True)
     st.title("Comprehension Check")
 
@@ -755,16 +735,6 @@ def show_practice():
     all_done      = mobo_done and forbidden_done and formal_done
 
     # Header with live checklist
-    st.markdown(
-        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;"
-        "font-size:13px;margin-bottom:8px'>📍 You are here: <b>Practice Round</b> &nbsp;|&nbsp; "
-        "Consent → Tutorial → Check → <u><b>Practice</b></u> → Main Task → Questionnaire → Debrief"
-        "</div>", unsafe_allow_html=True
-    )
-    st.markdown(
-        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 You are here: <b>Practice Round</b> &nbsp;|&nbsp; Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>",
-        unsafe_allow_html=True
-    )
     st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 <b>Stage: Practice Round</b> | Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>", unsafe_allow_html=True)
     st.markdown("## 🛠️ Practice Round")
 
@@ -942,18 +912,8 @@ def show_task():
         st.rerun()
 
     # ── Header ───────────────────────────────────────────────
-    st.markdown(
-        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 You are here: <b>Main Task</b> &nbsp;|&nbsp; Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>",
-        unsafe_allow_html=True
-    )
     st.markdown("<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;font-size:13px;margin-bottom:8px'>📍 <b>Stage: Main Task</b> | Consent → Tutorial → Check → Practice → Main Task → Questionnaire → Debrief</div>", unsafe_allow_html=True)
     st.markdown("## 🧠 Neural Network Hyperparameter Tuning Task")
-    st.markdown(
-        "<div style='background:#1a3a5c;color:white;padding:6px 14px;border-radius:6px;"
-        "font-size:13px;margin-bottom:8px'>📍 You are here: <b>Main Task</b> "
-        "| Consent → Tutorial → Check → Practice → <b>Main Task</b> → Questionnaire → Debrief"
-        "</div>", unsafe_allow_html=True
-    )
     st.info("**Your goal:** Find as many good trade-off designs as possible — both f₁ and f₂ high. "
             "Top-right corner of the plot = where you want to be. "
             "Use MOBO suggestions and steer it away from bad regions.")
@@ -1088,22 +1048,26 @@ def show_task():
 
             # Plot with jitter so overlapping dots are visible
             import random as _random
-            _random.seed(42)
 
             # Separate formals and heuristics for batch plotting
             heur = [e for e in all_evals if e['type'] == 'heuristic']
             form = [e for e in all_evals if e['type'] == 'formal']
 
-            def jitter(v): return max(0.02, min(0.98, v + _random.uniform(-0.03, 0.03)))
+            # Use unique seed per point index so jitter is always different
+            def jitter(v, seed):
+                _random.seed(seed)
+                return max(0.02, min(0.98, v + _random.uniform(-0.04, 0.04)))
+
             def score_color(e):
                 s = min(e['f1'], e['f2'])
-                t = (s - min_s) / rng
+                t = (s - min_s) / rng if rng > 0.001 else 0.5
+                t = max(0.0, min(1.0, t))
                 return f"rgb({int(220*(1-t))},{int(160*t)},60)"
 
             if heur:
                 fig_p.add_trace(go.Scatter(
-                    x=[jitter(e['x'][0]) for e in heur],
-                    y=[jitter(e['x'][1]) for e in heur],
+                    x=[jitter(e['x'][0], i*2) for i, e in enumerate(heur)],
+                    y=[jitter(e['x'][1], i*2+1) for i, e in enumerate(heur)],
                     mode="markers",
                     marker=dict(
                         color=[score_color(e) for e in heur],
@@ -1120,8 +1084,8 @@ def show_task():
 
             if form:
                 fig_p.add_trace(go.Scatter(
-                    x=[jitter(e['x'][0]) for e in form],
-                    y=[jitter(e['x'][1]) for e in form],
+                    x=[jitter(e['x'][0], (i+100)*2) for i, e in enumerate(form)],
+                    y=[jitter(e['x'][1], (i+100)*2+1) for i, e in enumerate(form)],
                     mode="markers",
                     marker=dict(
                         color=[score_color(e) for e in form],
